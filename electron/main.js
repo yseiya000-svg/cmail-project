@@ -211,20 +211,42 @@ const SPLASH_HTML = `
 function installSecurityPolicy() {
   const ses = session.defaultSession;
 
-  // Strict CSP for every response served to the renderer.
+  // Strict CSP for responses served by our own Next.js server. We MUST NOT
+  // inject our CSP into responses coming from Google (or any other origin)
+  // because their pages have their own form-action / frame-ancestors rules
+  // and ours would break the OAuth consent flow (e.g. the "Allow" button on
+  // accounts.google.com posts through several google subdomains).
   // 'unsafe-eval' & 'unsafe-inline' are unfortunately required for Next.js
   // (dev HMR + inline runtime scripts). We tighten everything else.
   ses.webRequest.onHeadersReceived((details, callback) => {
+    let fromOurOrigin = false;
+    try {
+      const u = new URL(details.url);
+      fromOurOrigin =
+        (u.protocol === "http:" || u.protocol === "https:") &&
+        u.hostname === "localhost" &&
+        (u.port === String(PORT) || u.port === "");
+    } catch {}
+
+    if (!fromOurOrigin) {
+      // Leave Google's (or any other host's) own headers untouched.
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+
     const csp = [
       "default-src 'self'",
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://*.gstatic.com https://ssl.gstatic.com https://www.google.com https://www.gstatic.com",
-      "style-src 'self' 'unsafe-inline' https://accounts.google.com https://*.gstatic.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://*.gstatic.com",
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://*.gstatic.com",
+      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "connect-src 'self' http://localhost:3000 ws://localhost:3000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
       "frame-src 'self' data: https://accounts.google.com",
-      "font-src 'self' data: https://fonts.gstatic.com",
+      "font-src 'self' data:",
       "object-src 'none'",
       "base-uri 'self'",
+      // form-action must allow accounts.google.com so the NextAuth signin
+      // form (POST to /api/auth/signin/google → 302 to accounts.google.com)
+      // is not blocked at the redirect step.
       "form-action 'self' https://accounts.google.com",
     ].join("; ");
     callback({
