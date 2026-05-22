@@ -242,7 +242,11 @@ function installSecurityPolicy() {
 
     const csp = [
       "default-src 'self'",
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://*.gstatic.com",
+      // Email bodies (rendered inside a sandboxed iframe via srcDoc) routinely
+      // pull marketing / logo imagery from arbitrary HTTPS hosts. The iframe
+      // sandbox forbids scripts regardless of CSP, so blanket-allowing https:
+      // images is safe — the worst case is a tracking pixel.
+      "img-src 'self' data: blob: http: https:",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "connect-src 'self' http://localhost:3000 ws://localhost:3000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
@@ -445,33 +449,65 @@ function setupAutoUpdater() {
   }, 5000);
 }
 
-app.whenReady().then(async () => {
-  if (process.platform === "win32") {
-    app.setAppUserModelId("com.cmail.app");
-  }
-  configureRuntimeEnv();
-  installSecurityPolicy();
-  startNext();
-  await createWindow();
-  setupAutoUpdater();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+// Force single-instance: if Cmail is already running, focus the existing
+// window instead of starting a second copy that would fail to bind port 3000.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
-});
+
+  app.whenReady().then(async () => {
+    if (process.platform === "win32") {
+      app.setAppUserModelId("com.cmail.app");
+    }
+    configureRuntimeEnv();
+    installSecurityPolicy();
+    startNext();
+    await createWindow();
+    setupAutoUpdater();
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+}
+
+/**
+ * Make absolutely sure the spawned Next.js server dies with the Electron
+ * app. `.kill()` alone often leaves a stranded server.js on Windows because
+ * it does not walk the child tree; `taskkill /T /F` does.
+ */
+function killNextProcess() {
+  if (!nextProcess) return;
+  const pid = nextProcess.pid;
+  try {
+    if (process.platform === "win32" && pid) {
+      // /T = include child processes, /F = force. windowsHide keeps it silent.
+      spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
+    } else {
+      nextProcess.kill();
+    }
+  } catch {}
+  nextProcess = null;
+}
 
 app.on("window-all-closed", () => {
-  if (nextProcess) {
-    try { nextProcess.kill(); } catch {}
-  }
+  killNextProcess();
   if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => {
-  if (nextProcess) {
-    try { nextProcess.kill(); } catch {}
-  }
-});
+app.on("before-quit", killNextProcess);
+app.on("will-quit", killNextProcess);
 
 // Block the rest of the world from creating new web contents.
 app.on("web-contents-created", (_event, contents) => {
