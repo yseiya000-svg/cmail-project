@@ -20,6 +20,29 @@ const PORT = 3000;
 const ORIGIN = `http://localhost:${PORT}`;
 const isDev = !app.isPackaged;
 
+// Google OAuth の遷移先。これらは Electron 内で開かないと
+// 認証 Cookie がアプリ側に届かないため、外部ブラウザ送りにしない。
+const OAUTH_ALLOWED_HOSTS = [
+  "accounts.google.com",
+  "accounts.youtube.com",
+  "oauth2.googleapis.com",
+  "ssl.gstatic.com",
+  "www.google.com",
+  "www.gstatic.com",
+];
+
+function isOAuthNavigation(urlString) {
+  try {
+    const u = new URL(urlString);
+    if (u.protocol !== "https:") return false;
+    return OAUTH_ALLOWED_HOSTS.some(
+      (h) => u.hostname === h || u.hostname.endsWith("." + h)
+    );
+  } catch {
+    return false;
+  }
+}
+
 let nextProcess = null;
 let mainWindow = null;
 
@@ -172,15 +195,15 @@ function installSecurityPolicy() {
   ses.webRequest.onHeadersReceived((details, callback) => {
     const csp = [
       "default-src 'self'",
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://*.gstatic.com",
-      "style-src 'self' 'unsafe-inline'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "connect-src 'self' http://localhost:3000 ws://localhost:3000",
-      "frame-src 'self' data:",
-      "font-src 'self' data:",
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://*.gstatic.com https://ssl.gstatic.com https://www.google.com https://www.gstatic.com",
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com https://*.gstatic.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://*.gstatic.com",
+      "connect-src 'self' http://localhost:3000 ws://localhost:3000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
+      "frame-src 'self' data: https://accounts.google.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://accounts.google.com",
     ].join("; ");
     callback({
       responseHeaders: {
@@ -251,17 +274,39 @@ async function createWindow() {
     },
   });
 
-  // Whitelist navigation: only our Next.js origin can replace the top frame.
+  // Whitelist navigation: only our Next.js origin and Google OAuth domains can
+  // replace the top frame. Without the OAuth allowance the sign-in redirect
+  // gets shunted into the system browser, where the callback cookies land —
+  // and the Electron window never sees the session.
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(ORIGIN) && !url.startsWith("data:text/html")) {
-      event.preventDefault();
-      shell.openExternal(url);
+    if (
+      url.startsWith(ORIGIN) ||
+      url.startsWith("data:text/html") ||
+      isOAuthNavigation(url)
+    ) {
+      return;
     }
+    event.preventDefault();
+    shell.openExternal(url);
   });
 
-  // Any window.open / target=_blank goes to the system browser.
+  // Google OAuth sometimes opens an account picker in a popup. Let those
+  // happen inside Electron so cookies stay in-app; everything else goes to
+  // the system browser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // Same-origin pop-ups are not used by Cmail; everything external goes out.
+    if (isOAuthNavigation(url)) {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          autoHideMenuBar: true,
+          webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true,
+          },
+        },
+      };
+    }
     shell.openExternal(url);
     return { action: "deny" };
   });
