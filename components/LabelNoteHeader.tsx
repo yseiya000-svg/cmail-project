@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { GmailLabel, LabelNote } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface LabelNoteHeaderProps {
   label: GmailLabel;
@@ -13,6 +14,7 @@ interface LabelNoteHeaderProps {
  * 保存内容は AI 返信生成時にそのラベル付きメールへ自動注入される。
  */
 export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
+  const { t } = useSettings();
   const [note, setNote] = useState<LabelNote>({
     labelId: label.id,
     labelName: label.name,
@@ -67,7 +69,7 @@ export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
         body: JSON.stringify(note),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "保存エラー");
+      if (!res.ok) throw new Error(data.error || t("saveFailed"));
       setSavedAt(Date.now());
     } catch (e: any) {
       setError(e.message);
@@ -85,7 +87,7 @@ export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
             <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
           </svg>
           <span className="text-sm font-semibold text-violet-900 truncate">{label.name}</span>
-          <span className="text-xs text-violet-400 ml-1">ラベルノート</span>
+          <span className="text-xs text-violet-400 ml-1">{t("labelNote")}</span>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
@@ -95,12 +97,12 @@ export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
               onChange={(e) => setNote({ ...note, excludeFromLearning: e.target.checked })}
               className="w-3.5 h-3.5 accent-violet-600"
             />
-            学習対象から除外
+            {t("excludeFromLearning")}
           </label>
           <button
             onClick={() => setExpanded((v) => !v)}
             className="text-gray-400 hover:text-gray-600"
-            title={expanded ? "折りたたむ" : "展開"}
+            title={expanded ? t("collapse") : t("expand")}
           >
             <svg
               width="14"
@@ -119,13 +121,13 @@ export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
       {expanded && (
         <div className="px-6 pb-3">
           {loading ? (
-            <div className="text-xs text-gray-400 py-2">読み込み中...</div>
+            <div className="text-xs text-gray-400 py-2">{t("loading")}</div>
           ) : (
             <>
               <textarea
                 value={note.body}
                 onChange={(e) => setNote({ ...note, body: e.target.value })}
-                placeholder="このラベルが付いたメールへの返信生成時に AI に渡される文脈をここに書きます。例：プロジェクトの概要、相手との関係性、注意事項など。"
+                placeholder={t("labelNotePlaceholder")}
                 rows={4}
                 className="w-full text-xs bg-white border border-violet-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 placeholder-gray-400 resize-y text-gray-700"
               />
@@ -133,12 +135,12 @@ export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
                 {error ? (
                   <span className="text-xs text-red-500">{error}</span>
                 ) : savedAt ? (
-                  <span className="text-xs text-green-600">保存しました</span>
+                  <span className="text-xs text-green-600">{t("saved")}</span>
                 ) : (
                   <span className="text-xs text-gray-400">
                     {note.excludeFromLearning
-                      ? "このラベル付きのメールは学習データから除外されます"
-                      : "保存内容は返信生成時に AI に注入されます"}
+                      ? t("labelNoteExcluded")
+                      : t("labelNoteInjected")}
                   </span>
                 )}
                 <button
@@ -146,7 +148,7 @@ export default function LabelNoteHeader({ label }: LabelNoteHeaderProps) {
                   disabled={saving}
                   className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-60 transition-colors"
                 >
-                  {saving ? "保存中..." : "保存"}
+                  {saving ? t("saving") : t("saveBtn")}
                 </button>
               </div>
             </>

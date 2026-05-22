@@ -15,20 +15,26 @@ const LABELS_SUBDIR = "labels";
 const PREFERENCES_FILE = "my-preferences.md";
 const PATTERNS_FILE = "reply-patterns.json";
 
-const PREFERENCES_TEMPLATE = `# 返信スタイル・好み
+const PREFERENCES_TEMPLATE = `# Cmail - 私の返信スタイル・好み
 
-> このファイルは Cmail の AI 返信生成時に **最優先で参照される** プロフィールです。
-> 設定ページの「再生成」ボタンで蓄積された返信パターンから自動更新できます。
-> もちろん手で書き足したり編集したりして構いません。
+> このファイルはCmailのAI返信生成に使われます。
+> 自由に書き足してください。書いた内容がそのまま返信の精度向上に反映されます。
 
-## 文体
-- （AI が学習して書き込みます）
+## 基本的なスタイル
+<!-- 自分の文体・口調の特徴を書いてください -->
 
-## 構成
-- （AI が学習して書き込みます）
+## やりたくないこと・避けたいこと
+<!-- 返信で使いたくない表現や避けたいことを書いてください -->
 
-## NG ワード・避けたい表現
-- （AI が学習して書き込みます）
+## よく使うフレーズ・表現
+<!-- ここに自分がよく使う言い回しを書いておくと反映されます -->
+
+## 相手別のスタイル
+<!-- 例：上司へは丁寧に、友人へはカジュアルに、など -->
+
+## その他メモ
+<!-- 何でも自由に書いてください -->
+- 僕の名前は"山﨑晴哉"です。
 `;
 
 /**
@@ -396,6 +402,28 @@ export function getLabelNotesByIds(labelIds: string[], allLabels: { id: string; 
     if (note) notes.push(note);
   }
   return notes;
+}
+
+/**
+ * ラベル名が変更されたとき、Obsidian 側のファイルもリネームする。
+ * ファイルが存在しない場合は何もしない（best-effort）。
+ */
+export function renameLabelNote(oldName: string, newName: string): void {
+  try {
+    const oldPath = getLabelPath(oldName);
+    const newPath = getLabelPath(newName);
+    if (!oldPath || !newPath) return;
+    if (!fs.existsSync(oldPath)) return;
+    // 新しいパスに既存ファイルがなければリネーム、あれば上書き
+    fs.renameSync(oldPath, newPath);
+    // frontmatter 内の labelName も更新
+    const raw = fs.readFileSync(newPath, "utf-8");
+    const { meta, body } = parseFrontmatter(raw);
+    meta.labelName = newName;
+    fs.writeFileSync(newPath, serializeFrontmatter(meta, body), "utf-8");
+  } catch {
+    // best-effort
+  }
 }
 
 export function shouldExcludeFromLearning(

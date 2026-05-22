@@ -21,7 +21,7 @@ const SYSTEM_LABEL_IDS = new Set([
 export default function MailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { t, settings, loaded: settingsLoaded } = useSettings();
+  const { t, tf, settings, loaded: settingsLoaded } = useSettings();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [activeLabelId, setActiveLabelId] = useState("INBOX");
@@ -252,7 +252,7 @@ export default function MailPage() {
   async function deleteSelected() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (!confirm(`${ids.length}件のメールをゴミ箱に移動しますか？`)) return;
+    if (!confirm(tf("deleteConfirm", ids.length))) return;
     try {
       await fetch("/api/gmail/modify", {
         method: "POST",
@@ -348,19 +348,19 @@ export default function MailPage() {
                   onClick={() => { selectAll(); setShowSelectMenu(false); }}
                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50"
                 >
-                  すべて
+                  {t("selectAll")}
                 </button>
                 <button
                   onClick={() => { selectUnread(); setShowSelectMenu(false); }}
                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50"
                 >
-                  未読のみ
+                  {t("selectUnread")}
                 </button>
                 <button
                   onClick={() => { selectNone(); setShowSelectMenu(false); }}
                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50"
                 >
-                  選択を解除
+                  {t("selectNone")}
                 </button>
               </div>
             )}
@@ -368,7 +368,7 @@ export default function MailPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">
               {selectionCount > 0
-                ? `${selectionCount}件選択中`
+                ? `${selectionCount}${t("itemsSelected")}`
                 : `${filteredMessages.length}${t("countDisplayed")}`}
             </span>
             <button
@@ -389,17 +389,17 @@ export default function MailPage() {
             <button
               onClick={() => setShowBulkLabelMenu((v) => !v)}
               className="flex items-center gap-1 text-xs bg-white border border-violet-200 px-2 py-1 rounded hover:bg-violet-100 transition-colors"
-              title="ラベル付与"
+              title={t("addLabelTitle")}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="#7c3aed">
                 <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
               </svg>
-              ラベル
+              {t("labelBtn")}
             </button>
             {showBulkLabelMenu && (
               <div className="absolute top-full left-3 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 min-w-[180px] max-h-60 overflow-y-auto">
                 {userLabels.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-gray-400">ラベルがありません</div>
+                  <div className="px-3 py-2 text-xs text-gray-400">{t("noLabels")}</div>
                 ) : (
                   userLabels.map((l) => (
                     <button
@@ -420,19 +420,19 @@ export default function MailPage() {
               onClick={() => markSelectedRead(true)}
               className="text-xs bg-white border border-violet-200 px-2 py-1 rounded hover:bg-violet-100 transition-colors"
             >
-              既読
+              {t("markRead")}
             </button>
             <button
               onClick={() => markSelectedRead(false)}
               className="text-xs bg-white border border-violet-200 px-2 py-1 rounded hover:bg-violet-100 transition-colors"
             >
-              未読
+              {t("markUnread")}
             </button>
             <button
               onClick={deleteSelected}
               className="text-xs bg-white border border-red-200 text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors ml-auto"
             >
-              削除
+              {t("deleteBtn")}
             </button>
           </div>
         )}

@@ -13,20 +13,21 @@ const LANGUAGE_OPTIONS: Language[] = ["ja", "en", "es", "ko", "zh"];
 const KEEP_SENTINEL = "__keep__";
 
 function PreferencesRegenSection() {
+  const { t } = useSettings();
   const [running, setRunning] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
   async function handleRegenerate() {
-    if (!confirm("my-preferences.md を AI で再生成します。よろしいですか？")) return;
+    if (!confirm(t("preferencesRegenConfirm"))) return;
     setRunning(true);
     setMsg("");
     setErr("");
     try {
       const res = await fetch("/api/preferences/regenerate", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "再生成エラー");
-      setMsg("再生成しました。Obsidian で my-preferences.md を確認してください。");
+      if (!res.ok) throw new Error(data.error || t("saveFailed"));
+      setMsg(t("preferencesRegenSuccess"));
     } catch (e: any) {
       setErr(e.message);
     } finally {
@@ -44,7 +45,7 @@ function PreferencesRegenSection() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
         </svg>
-        {running ? "再生成中..." : "返信スタイルを再生成"}
+        {running ? t("regenerating") : t("regeneratePreferences")}
       </button>
       {msg && <span className="text-xs text-green-600">{msg}</span>}
       {err && <span className="text-xs text-red-500">{err}</span>}
@@ -257,7 +258,7 @@ export default function SettingsPage() {
                 <svg className="w-3 h-3 text-green-500" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                 </svg>
-                <span>現在のキー: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{settings.aiApiKey || "********"}</code></span>
+                <span>{t("currentKey")} <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{settings.aiApiKey || "********"}</code></span>
               </div>
             )}
             <div className="flex items-stretch gap-0 border border-gray-200 rounded-lg overflow-hidden focus-within:border-violet-400 transition-colors bg-white">
@@ -317,10 +318,7 @@ export default function SettingsPage() {
               {t("obsidianFolderPath")}
             </label>
             <p className="text-[11px] text-gray-400 mb-1.5">
-              フォルダを選択すると、その直下に <code className="bg-gray-100 px-1 rounded">contacts/</code> /
-              <code className="bg-gray-100 px-1 rounded ml-1">labels/</code> /
-              <code className="bg-gray-100 px-1 rounded ml-1">my-preferences.md</code> /
-              <code className="bg-gray-100 px-1 rounded ml-1">reply-patterns.json</code> が自動作成されます。
+              {t("obsidianFolderHint")}
             </p>
             <div className="flex items-stretch gap-0 border border-gray-200 rounded-lg overflow-hidden focus-within:border-violet-400 transition-colors bg-white">
               <input
@@ -339,7 +337,7 @@ export default function SettingsPage() {
                     const picked = await window.cmail.selectFolder(draft.obsidianCmailPath);
                     if (picked) updateDraft({ obsidianCmailPath: picked });
                   } else {
-                    alert("フォルダ選択はデスクトップアプリ版で利用できます。");
+                    alert(t("folderBrowseDesktopOnly"));
                   }
                 }}
                 title="フォルダを参照"
@@ -355,12 +353,8 @@ export default function SettingsPage() {
 
         {/* 学習データの再生成 */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">学習データの再生成</h2>
-          <p className="text-xs text-gray-400 mb-3">
-            これまでの送受信履歴（reply-patterns.json）を AI が分析し、
-            <code className="bg-gray-100 px-1 rounded">my-preferences.md</code>
-            を最新の傾向に合わせて書き直します。AI 料金がかかる操作のため手動実行です。
-          </p>
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">{t("preferencesRegenLabel")}</h2>
+          <p className="text-xs text-gray-400 mb-3">{t("preferencesRegenDesc")}</p>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <PreferencesRegenSection />
           </div>

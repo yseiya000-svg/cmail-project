@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ContactNote } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ContactPanelProps {
   email: string;
@@ -14,6 +15,7 @@ interface ContactPanelProps {
  * 過去のやり取りから AI が特徴・プロジェクト・口調をまとめる「AI で更新」ボタン付き。
  */
 export default function ContactPanel({ email, displayName, onClose }: ContactPanelProps) {
+  const { t, tf } = useSettings();
   const [note, setNote] = useState<ContactNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,7 +34,7 @@ export default function ContactPanel({ email, displayName, onClose }: ContactPan
             email,
             name: displayName,
             exchangeCount: 0,
-            body: "## メモ\n（まだ何も書かれていません。「AI で更新」を押すと過去のやり取りから自動でまとめます）\n",
+            body: "## メモ\n",
           }
         );
       })
@@ -53,7 +55,7 @@ export default function ContactPanel({ email, displayName, onClose }: ContactPan
         body: JSON.stringify({ email, displayName }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "更新エラー");
+      if (!res.ok) throw new Error(data.error || t("saveFailed"));
       setNote(data.contact);
     } catch (e: any) {
       setError(e.message);
@@ -73,7 +75,7 @@ export default function ContactPanel({ email, displayName, onClose }: ContactPan
         body: JSON.stringify(note),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "保存エラー");
+      if (!res.ok) throw new Error(data.error || t("saveFailed"));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -111,13 +113,13 @@ export default function ContactPanel({ email, displayName, onClose }: ContactPan
 
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
-            <div className="text-sm text-gray-400">読み込み中...</div>
+            <div className="text-sm text-gray-400">{t("loading")}</div>
           ) : note ? (
             <>
               <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
-                <span>やり取り {note.exchangeCount ?? 0} 回</span>
-                {note.firstSeen && <span>初回: {note.firstSeen}</span>}
-                {note.lastSeen && <span>最終: {note.lastSeen}</span>}
+                <span>{tf("nExchanges", note.exchangeCount ?? 0)}</span>
+                {note.firstSeen && <span>{t("firstSeenLabel")} {note.firstSeen}</span>}
+                {note.lastSeen && <span>{t("lastSeenLabel")} {note.lastSeen}</span>}
               </div>
               <textarea
                 value={note.body}
@@ -138,7 +140,7 @@ export default function ContactPanel({ email, displayName, onClose }: ContactPan
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
             </svg>
-            {refreshing ? "分析中..." : "AI で情報を更新"}
+            {refreshing ? t("analyzing") : t("aiUpdateContact")}
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -146,7 +148,7 @@ export default function ContactPanel({ email, displayName, onClose }: ContactPan
               disabled={saving}
               className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-white disabled:opacity-60 text-gray-700"
             >
-              {saving ? "保存中..." : "手動編集を保存"}
+              {saving ? t("saving") : t("saveManualEdit")}
             </button>
           </div>
         </div>

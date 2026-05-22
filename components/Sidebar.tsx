@@ -83,12 +83,20 @@ export default function Sidebar({
 }: SidebarProps) {
   const { data: session } = useSession();
   const router = useRouter();
-  const { t } = useSettings();
+  const { t, tf } = useSettings();
   const [showAccountPopup, setShowAccountPopup] = useState(false);
   const accountSectionRef = useRef<HTMLDivElement>(null);
   const [creatingLabel, setCreatingLabel] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [labelError, setLabelError] = useState("");
+
+  // 右クリックコンテキストメニュー
+  type ContextMenu = { x: number; y: number; label: GmailLabel } | null;
+  const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
+
+  // ラベルリネーム
+  const [renamingLabelId, setRenamingLabelId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   async function handleCreateLabel() {
     const name = newLabelName.trim();
@@ -109,6 +117,53 @@ export default function Sidebar({
       setLabelError(e.message);
     }
   }
+
+  async function handleRenameLabel(label: GmailLabel) {
+    const name = renameValue.trim();
+    if (!name || name === label.name) {
+      setRenamingLabelId(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/labels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: label.id, name, oldName: label.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "名前変更エラー");
+      setRenamingLabelId(null);
+      onLabelsChanged?.();
+    } catch (e: any) {
+      setLabelError(e.message);
+      setRenamingLabelId(null);
+    }
+  }
+
+  async function handleDeleteLabel(label: GmailLabel) {
+    setContextMenu(null);
+    if (!confirm(tf("deleteLabelConfirm", label.name))) return;
+    try {
+      const res = await fetch(`/api/labels?id=${encodeURIComponent(label.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "削除エラー");
+      }
+      onLabelsChanged?.();
+    } catch (e: any) {
+      setLabelError(e.message);
+    }
+  }
+
+  // コンテキストメニューの外クリックで閉じる
+  useEffect(() => {
+    if (!contextMenu) return;
+    function close() { setContextMenu(null); }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [contextMenu]);
 
   const SYSTEM_LABELS = [
     { id: "INBOX", name: t("inbox") },
@@ -199,7 +254,7 @@ export default function Sidebar({
           <button
             onClick={() => setCreatingLabel((v) => !v)}
             className="text-gray-400 hover:text-violet-600 transition-colors"
-            title="ラベルを作成"
+            title={t("createLabelTitle")}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -221,7 +276,7 @@ export default function Sidebar({
                   setLabelError("");
                 }
               }}
-              placeholder="ラベル名"
+              placeholder={t("labelNamePlaceholder")}
               className="w-full text-xs border border-violet-200 rounded-lg px-2 py-1 outline-none focus:border-violet-400 text-gray-700"
             />
             {labelError && (
@@ -229,22 +284,77 @@ export default function Sidebar({
             )}
           </div>
         )}
-        {userLabels.map((label) => (
-          <button
-            key={label.id}
-            onClick={() => onLabelChange(label.id)}
-            className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${
-              activeLabelId === label.id
-                ? "bg-violet-50 text-violet-700 font-medium"
-                : "text-gray-600 hover:bg-gray-50"
-            }`}
+        {userLabels.map((label) =>
+          renamingLabelId === label.id ? (
+            // インラインリネーム入力
+            <div key={label.id} className="px-3 py-1 mb-0.5">
+              <input
+                type="text"
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRenameLabel(label);
+                  else if (e.key === "Escape") setRenamingLabelId(null);
+                }}
+                onBlur={() => handleRenameLabel(label)}
+                placeholder={t("newLabelNamePlaceholder")}
+                className="w-full text-xs border border-violet-300 rounded-lg px-2 py-1 outline-none focus:border-violet-500 text-gray-700 bg-white"
+              />
+            </div>
+          ) : (
+            <button
+              key={label.id}
+              onClick={() => onLabelChange(label.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, label });
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${
+                activeLabelId === label.id
+                  ? "bg-violet-50 text-violet-700 font-medium"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <svg className="w-3 h-3 text-violet-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
+              </svg>
+              <span className="flex-1 text-left truncate">{label.name}</span>
+            </button>
+          )
+        )}
+
+        {/* 右クリックコンテキストメニュー */}
+        {contextMenu && (
+          <div
+            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[140px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            <svg className="w-3 h-3 text-violet-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
-            </svg>
-            <span className="flex-1 text-left truncate">{label.name}</span>
-          </button>
-        ))}
+            <button
+              onClick={() => {
+                setRenameValue(contextMenu.label.name);
+                setRenamingLabelId(contextMenu.label.id);
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+              </svg>
+              {t("renameLabel")}
+            </button>
+            <button
+              onClick={() => handleDeleteLabel(contextMenu.label)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+              </svg>
+              {t("deleteLabel")}
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Account section — relative wrapper so popup anchors here */}

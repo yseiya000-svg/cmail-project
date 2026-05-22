@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { createLabel, deleteLabel } from "@/lib/gmail";
-import { writeLabelNote } from "@/lib/obsidian";
+import { createLabel, deleteLabel, patchLabel } from "@/lib/gmail";
+import { writeLabelNote, renameLabelNote } from "@/lib/obsidian";
 import { authOptions } from "@/lib/authOptions";
 
 export async function POST(req: NextRequest) {
@@ -29,6 +29,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ label });
   } catch (err: any) {
     console.error("create label error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.accessToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { id, name, oldName } = await req.json();
+  if (!id || !name || typeof name !== "string") {
+    return NextResponse.json({ error: "id and name required" }, { status: 400 });
+  }
+  try {
+    const label = await patchLabel(session.accessToken as string, id, name.trim());
+    // Obsidian 側のファイルもリネーム
+    if (oldName) {
+      try { renameLabelNote(oldName, label.name); } catch { /* best-effort */ }
+    }
+    return NextResponse.json({ label });
+  } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

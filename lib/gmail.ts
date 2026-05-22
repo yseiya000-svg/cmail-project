@@ -268,3 +268,24 @@ export async function deleteLabel(accessToken: string, id: string): Promise<void
   const gmail = getGmailClient(accessToken);
   await gmail.users.labels.delete({ userId: "me", id });
 }
+
+export async function patchLabel(
+  accessToken: string,
+  id: string,
+  name: string
+): Promise<GmailLabel> {
+  const gmail = getGmailClient(accessToken);
+  const res = await gmail.users.labels.patch({
+    userId: "me",
+    id,
+    requestBody: { name },
+  });
+  const l = res.data;
+  return {
+    id: l.id!,
+    name: l.name!,
+    type: l.type || "user",
+    messagesUnread: 0,
+    messagesTotal: 0,
+  };
+}

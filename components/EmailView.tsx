@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EmailMessage, GmailLabel } from "@/types";
 import AIReplyPanel from "./AIReplyPanel";
 import ContactPanel from "./ContactPanel";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface EmailViewProps {
   message: EmailMessage | null;
@@ -58,6 +59,7 @@ export default function EmailView({
   onAddLabel,
   onRemoveLabel,
 }: EmailViewProps) {
+  const { t } = useSettings();
   const [showReply, setShowReply] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showLabelMenu, setShowLabelMenu] = useState(false);
@@ -97,7 +99,7 @@ export default function EmailView({
   if (!message) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-400 text-sm bg-gray-50">
-        メールを選択してください
+        {t("selectEmail")}
       </div>
     );
   }
@@ -107,33 +109,33 @@ export default function EmailView({
       {/* Email header */}
       <div className="px-6 py-4 border-b border-gray-100 bg-white">
         <h2 className="text-lg font-semibold text-gray-900 mb-2">{message.subject}</h2>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-sm font-bold leading-none">
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-sm font-bold leading-none flex-shrink-0">
               <span className="-mt-px">
                 {(message.fromName || message.from)[0]?.toUpperCase()}
               </span>
             </div>
-            <div>
-              <div className="text-sm font-medium text-gray-800">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-800 truncate">
                 {message.fromName || message.from}
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-400 truncate">
                 To: {message.to || "me"} · {message.date}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* 連絡先パネル */}
             <button
               onClick={() => setShowContact(true)}
               className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-              title="この相手の連絡先ノート"
+              title={t("contactNoteTitle")}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
               </svg>
-              連絡先
+              {t("contactsBtn")}
             </button>
 
             {/* ラベル追加メニュー */}
@@ -141,17 +143,17 @@ export default function EmailView({
               <button
                 onClick={() => setShowLabelMenu((v) => !v)}
                 className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-                title="ラベルを追加"
+                title={t("addLabelTitle")}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
                 </svg>
-                ラベル
+                {t("labelBtn")}
               </button>
               {showLabelMenu && (
                 <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[200px] max-h-72 overflow-y-auto">
                   {userLabels.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-gray-400">ラベルがありません</div>
+                    <div className="px-3 py-2 text-xs text-gray-400">{t("noLabels")}</div>
                   ) : (
                     userLabels.map((l) => {
                       const checked = message.labelIds.includes(l.id);
@@ -185,7 +187,7 @@ export default function EmailView({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z" />
               </svg>
-              返信
+              {t("replyBtn")}
             </button>
           </div>
         </div>
@@ -202,7 +204,7 @@ export default function EmailView({
                 <button
                   onClick={() => onRemoveLabel?.(message.id, l.id)}
                   className="text-violet-400 hover:text-violet-700"
-                  aria-label="ラベルを外す"
+                  aria-label={t("removeLabelAria")}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -220,12 +222,12 @@ export default function EmailView({
           <>
             {!allowImages && /<img[\s>]/i.test(message.bodyHtml) && (
               <div className="mx-6 mt-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between text-xs text-amber-800">
-                <span>このメールには画像が含まれています。プライバシー保護のため初期状態では読み込みません。</span>
+                <span>{t("imageTrackingWarning")}</span>
                 <button
                   onClick={() => setAllowImages(true)}
                   className="text-xs font-medium text-amber-900 hover:text-amber-700 underline ml-3 whitespace-nowrap"
                 >
-                  画像を読み込む
+                  {t("loadImages")}
                 </button>
               </div>
             )}
