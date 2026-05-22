@@ -1,0 +1,111 @@
+{
+  "name": "cmail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gmail x Claude AI mail client",
+  "author": {
+    "name": "Seiya Yamasaki",
+    "email": "y.seiya000@gmail.com"
+  },
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "electron": "electron .",
+    "app": "electron .",
+    "app:start": "electron .",
+    "postbuild:copy-public": "node scripts/copy-standalone-assets.js",
+    "build:app": "next build && npm run postbuild:copy-public",
+    "dist": "npm run build:app && electron-builder --win --publish never",
+    "release": "npm run build:app && electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "next": "15.3.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next-auth": "^4.24.11",
+    "googleapis": "^144.0.0",
+    "@anthropic-ai/sdk": "^0.54.0",
+    "date-fns": "^4.1.0",
+    "he": "^1.2.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/he": "^1.2.3",
+    "tailwindcss": "^4",
+    "@tailwindcss/postcss": "^4",
+    "postcss": "^8",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "concurrently": "^9.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.cmail.app",
+    "productName": "Cmail",
+    "copyright": "Copyright (c) 2026 Seiya Yamasaki",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "app",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".next/static",
+        "to": "app/.next/static",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "public",
+        "to": "app/public",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icons/cmail.ico",
+      "artifactName": "Cmail-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cmail",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "public/icons/cmail.ico",
+      "uninstallerIcon": "public/icons/cmail.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yseiya000-svg",
+        "repo": "cmail-project",
+        "private": true,
+        "releaseType": "release"
+      }
+    ]
+  }
+}
