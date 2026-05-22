@@ -61,6 +61,12 @@ function configureRuntimeEnv() {
   process.env.CMAIL_USER_DATA_DIR = userDataDir;
   process.env.CMAIL_APP_DIR = app.getAppPath();
 
+  // Surface the OS locale to the Next.js server so new installs default
+  // to the user's system language instead of always falling back to ja.
+  try {
+    process.env.CMAIL_DEFAULT_LANGUAGE = app.getLocale() || "";
+  } catch {}
+
   // Google OAuth "Desktop app" credentials — bundled into the .exe so the
   // packaged app can sign in without each user needing their own Google
   // Cloud project. The file is gitignored; ship-time builds expect it
