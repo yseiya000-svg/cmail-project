@@ -90,6 +90,8 @@ export async function listMessages(
       isRead: !msg.labelIds?.includes("UNREAD"),
       isStarred: msg.labelIds?.includes("STARRED") ?? false,
       labelIds: msg.labelIds || [],
+      messageIdHeader: get("Message-ID") || get("Message-Id") || undefined,
+      references: get("References") || undefined,
     };
   });
 
@@ -134,24 +136,52 @@ function encodeAddressHeader(value: string): string {
     .join(", ");
 }
 
+export interface SendReplyHeaders {
+  /** Original "Message-ID:" of the email we're replying to. Must keep the
+   *  surrounding angle brackets. Without this, the recipient's mail client
+   *  treats the reply as a brand-new message instead of part of the thread. */
+  inReplyTo?: string;
+  /** Existing "References:" chain from the original message (or empty). */
+  references?: string;
+}
+
 export async function sendMessage(
   accessToken: string,
   to: string,
   subject: string,
   body: string,
-  threadId?: string
+  threadId?: string,
+  replyHeaders?: SendReplyHeaders
 ): Promise<void> {
   const gmail = getGmailClient(accessToken);
 
-  const emailLines = [
+  // Normalize the Message-ID — Gmail sometimes returns it with extra
+  // whitespace or missing brackets. Threading is strict on the spec form.
+  function normalizeMessageId(id: string | undefined): string {
+    if (!id) return "";
+    const trimmed = id.trim();
+    if (!trimmed) return "";
+    return /^<.*>$/.test(trimmed) ? trimmed : `<${trimmed}>`;
+  }
+
+  const inReplyTo = normalizeMessageId(replyHeaders?.inReplyTo);
+  // References should be the chain so far + the message we're replying to.
+  const refsChain = [replyHeaders?.references?.trim(), inReplyTo]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  const headerLines: string[] = [
     `To: ${encodeAddressHeader(to)}`,
     `Subject: ${encodeHeaderWord(subject)}`,
     "Content-Type: text/plain; charset=utf-8",
     "MIME-Version: 1.0",
     "Content-Transfer-Encoding: 8bit",
-    "",
-    body,
   ];
+  if (inReplyTo) headerLines.push(`In-Reply-To: ${inReplyTo}`);
+  if (refsChain) headerLines.push(`References: ${refsChain}`);
+
+  const emailLines = [...headerLines, "", body];
 
   const raw = Buffer.from(emailLines.join("\r\n"), "utf-8")
     .toString("base64")
