@@ -90,8 +90,10 @@ export default function EmailView({ message, onReplyLearned }: EmailViewProps) {
         <h2 className="text-lg font-semibold text-gray-900 mb-2">{message.subject}</h2>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-sm font-bold">
-              {(message.fromName || message.from)[0]?.toUpperCase()}
+            <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-sm font-bold leading-none">
+              <span className="-mt-px">
+                {(message.fromName || message.from)[0]?.toUpperCase()}
+              </span>
             </div>
             <div>
               <div className="text-sm font-medium text-gray-800">
