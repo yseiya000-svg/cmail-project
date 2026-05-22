@@ -1,0 +1,407 @@
+import fs from "fs";
+import path from "path";
+import type { ReplyPattern, ContactNote, LabelNote } from "@/types";
+import { getCmailDir } from "@/lib/settings";
+
+const vaultPath = process.env.OBSIDIAN_VAULT_PATH || "";
+const profileFile = path.join(vaultPath, "Notion", "Project Management", "About myself.md");
+
+// ---------------------------------------------------------------------------
+// フォルダ構造の初期化
+// ---------------------------------------------------------------------------
+
+const CONTACTS_SUBDIR = "contacts";
+const LABELS_SUBDIR = "labels";
+const PREFERENCES_FILE = "my-preferences.md";
+const PATTERNS_FILE = "reply-patterns.json";
+
+const PREFERENCES_TEMPLATE = `# 返信スタイル・好み
+
+> このファイルは Cmail の AI 返信生成時に **最優先で参照される** プロフィールです。
+> 設定ページの「再生成」ボタンで蓄積された返信パターンから自動更新できます。
+> もちろん手で書き足したり編集したりして構いません。
+
+## 文体
+- （AI が学習して書き込みます）
+
+## 構成
+- （AI が学習して書き込みます）
+
+## NG ワード・避けたい表現
+- （AI が学習して書き込みます）
+`;
+
+/**
+ * Cmail フォルダ配下に必要なファイル・サブフォルダを作る。
+ * 既存ファイルは上書きしない。冪等。
+ */
+export function initCmailFolderStructure(cmailDir: string): void {
+  if (!cmailDir) return;
+  try {
+    if (!fs.existsSync(cmailDir)) fs.mkdirSync(cmailDir, { recursive: true });
+
+    const contactsDir = path.join(cmailDir, CONTACTS_SUBDIR);
+    const labelsDir = path.join(cmailDir, LABELS_SUBDIR);
+    if (!fs.existsSync(contactsDir)) fs.mkdirSync(contactsDir, { recursive: true });
+    if (!fs.existsSync(labelsDir)) fs.mkdirSync(labelsDir, { recursive: true });
+
+    const preferencesPath = path.join(cmailDir, PREFERENCES_FILE);
+    if (!fs.existsSync(preferencesPath)) {
+      fs.writeFileSync(preferencesPath, PREFERENCES_TEMPLATE, "utf-8");
+    }
+
+    const patternsPath = path.join(cmailDir, PATTERNS_FILE);
+    if (!fs.existsSync(patternsPath)) {
+      fs.writeFileSync(patternsPath, "[]", "utf-8");
+    }
+  } catch {
+    // best-effort
+  }
+}
+
+function ensureCmailDir(cmailDir: string) {
+  initCmailFolderStructure(cmailDir);
+}
+
+// ---------------------------------------------------------------------------
+// 返信パターン（既存 + kind対応）
+// ---------------------------------------------------------------------------
+
+export function readReplyPatterns(): ReplyPattern[] {
+  try {
+    const cmailDir = getCmailDir();
+    if (!cmailDir) return [];
+    ensureCmailDir(cmailDir);
+    const patternsFile = path.join(cmailDir, PATTERNS_FILE);
+    if (!fs.existsSync(patternsFile)) return [];
+    const raw = fs.readFileSync(patternsFile, "utf-8");
+    return JSON.parse(raw) as ReplyPattern[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveReplyPattern(pattern: ReplyPattern): void {
+  try {
+    const cmailDir = getCmailDir();
+    if (!cmailDir) return;
+    ensureCmailDir(cmailDir);
+    const patternsFile = path.join(cmailDir, PATTERNS_FILE);
+    const patterns = readReplyPatterns();
+    const existing = patterns.findIndex((p) => p.id === pattern.id);
+    if (existing >= 0) {
+      patterns[existing] = pattern;
+    } else {
+      patterns.push(pattern);
+    }
+    const trimmed = patterns.slice(-200);
+    fs.writeFileSync(patternsFile, JSON.stringify(trimmed, null, 2), "utf-8");
+  } catch {
+    // skip
+  }
+}
+
+// ---------------------------------------------------------------------------
+// プロフィール・好み
+// ---------------------------------------------------------------------------
+
+export function readUserProfile(): string {
+  try {
+    if (!vaultPath || !fs.existsSync(profileFile)) return "";
+    return fs.readFileSync(profileFile, "utf-8");
+  } catch {
+    return "";
+  }
+}
+
+export function readUserPreferences(): string {
+  try {
+    const cmailDir = getCmailDir();
+    if (!cmailDir) return "";
+    const preferencesFile = path.join(cmailDir, PREFERENCES_FILE);
+    if (!fs.existsSync(preferencesFile)) return "";
+    return fs.readFileSync(preferencesFile, "utf-8");
+  } catch {
+    return "";
+  }
+}
+
+export function writeUserPreferences(content: string): void {
+  const cmailDir = getCmailDir();
+  if (!cmailDir) throw new Error("Cmail フォルダが未設定です");
+  ensureCmailDir(cmailDir);
+  const preferencesFile = path.join(cmailDir, PREFERENCES_FILE);
+  fs.writeFileSync(preferencesFile, content, "utf-8");
+}
+
+export function getSimilarPatterns(
+  emailFrom: string,
+  tone: string,
+  limit = 5
+): ReplyPattern[] {
+  const all = readReplyPatterns();
+  const scored = all.map((p) => ({
+    pattern: p,
+    score:
+      (p.emailFrom === emailFrom ? 2 : 0) +
+      (p.tone === tone ? 1 : 0) +
+      (!p.edited ? 1 : 0),
+  }));
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((s) => s.pattern);
+}
+
+// ---------------------------------------------------------------------------
+// 簡易 YAML frontmatter パーサ（依存なし、シンプル）
+// ---------------------------------------------------------------------------
+
+interface ParsedFrontmatter {
+  meta: Record<string, string | number | boolean>;
+  body: string;
+}
+
+function parseFrontmatter(raw: string): ParsedFrontmatter {
+  const match = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+  if (!match) return { meta: {}, body: raw };
+  const yamlBody = match[1];
+  const restBody = match[2] || "";
+  const meta: Record<string, string | number | boolean> = {};
+  for (const line of yamlBody.split(/\r?\n/)) {
+    const m = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+    if (!m) continue;
+    const key = m[1];
+    let val: string | number | boolean = m[2].trim();
+    if (val === "true") val = true;
+    else if (val === "false") val = false;
+    else if (/^-?\d+(\.\d+)?$/.test(val)) val = Number(val);
+    else {
+      // strip surrounding quotes if any
+      val = val.replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
+    }
+    meta[key] = val;
+  }
+  return { meta, body: restBody };
+}
+
+function serializeFrontmatter(meta: Record<string, unknown>, body: string): string {
+  const lines = ["---"];
+  for (const [k, v] of Object.entries(meta)) {
+    if (v === undefined || v === null || v === "") continue;
+    if (typeof v === "string" && /[:#"']/.test(v)) {
+      lines.push(`${k}: "${v.replace(/"/g, '\\"')}"`);
+    } else {
+      lines.push(`${k}: ${v}`);
+    }
+  }
+  lines.push("---", "");
+  return lines.join("\n") + (body || "");
+}
+
+// ---------------------------------------------------------------------------
+// Contacts
+// ---------------------------------------------------------------------------
+
+function sanitizeEmail(email: string): string {
+  return email.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function getContactsDir(): string {
+  const cmailDir = getCmailDir();
+  if (!cmailDir) return "";
+  ensureCmailDir(cmailDir);
+  return path.join(cmailDir, CONTACTS_SUBDIR);
+}
+
+function getContactPath(email: string): string {
+  const dir = getContactsDir();
+  if (!dir) return "";
+  return path.join(dir, `${sanitizeEmail(email)}.md`);
+}
+
+export function readContact(email: string): ContactNote | null {
+  try {
+    const file = getContactPath(email);
+    if (!file || !fs.existsSync(file)) return null;
+    const raw = fs.readFileSync(file, "utf-8");
+    const { meta, body } = parseFrontmatter(raw);
+    return {
+      email: String(meta.email || email),
+      name: meta.name ? String(meta.name) : undefined,
+      exchangeCount: typeof meta.exchangeCount === "number" ? meta.exchangeCount : undefined,
+      firstSeen: meta.firstSeen ? String(meta.firstSeen) : undefined,
+      lastSeen: meta.lastSeen ? String(meta.lastSeen) : undefined,
+      body: body.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeContact(note: ContactNote): void {
+  const file = getContactPath(note.email);
+  if (!file) throw new Error("Cmail フォルダが未設定です");
+  const meta: Record<string, unknown> = {
+    email: note.email,
+    name: note.name || "",
+    exchangeCount: note.exchangeCount ?? 0,
+    firstSeen: note.firstSeen || "",
+    lastSeen: note.lastSeen || "",
+  };
+  const content = serializeFrontmatter(meta, note.body || "## メモ\n");
+  fs.writeFileSync(file, content, "utf-8");
+}
+
+export function listContacts(): ContactNote[] {
+  const dir = getContactsDir();
+  if (!dir || !fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => {
+      try {
+        const raw = fs.readFileSync(path.join(dir, f), "utf-8");
+        const { meta, body } = parseFrontmatter(raw);
+        return {
+          email: String(meta.email || f.replace(/\.md$/, "")),
+          name: meta.name ? String(meta.name) : undefined,
+          exchangeCount: typeof meta.exchangeCount === "number" ? meta.exchangeCount : undefined,
+          firstSeen: meta.firstSeen ? String(meta.firstSeen) : undefined,
+          lastSeen: meta.lastSeen ? String(meta.lastSeen) : undefined,
+          body: body.trim(),
+        } as ContactNote;
+      } catch {
+        return null;
+      }
+    })
+    .filter((c): c is ContactNote => c !== null);
+}
+
+/**
+ * 送受信のたびに呼ぶ。連絡先ファイルが無ければ stub を作り、回数・最終日を更新する。
+ * メモ本文は触らない（手動 / AI 更新ボタンで埋まる）。
+ */
+export function bumpContact(email: string, displayName?: string): void {
+  if (!email) return;
+  try {
+    const existing = readContact(email);
+    const now = new Date().toISOString().slice(0, 10);
+    const note: ContactNote = existing
+      ? {
+          ...existing,
+          name: existing.name || displayName,
+          exchangeCount: (existing.exchangeCount || 0) + 1,
+          lastSeen: now,
+        }
+      : {
+          email,
+          name: displayName,
+          exchangeCount: 1,
+          firstSeen: now,
+          lastSeen: now,
+          body: "## メモ\n（「AI で更新」ボタンを押すと、過去のやり取りからこの人の特徴・プロジェクト・口調などをまとめます）\n",
+        };
+    writeContact(note);
+  } catch {
+    // skip
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Label notes
+// ---------------------------------------------------------------------------
+
+function sanitizeLabelName(name: string): string {
+  // Windows file system に出せない文字を除去 + 空白を _ に
+  return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0, 100);
+}
+
+function getLabelsDir(): string {
+  const cmailDir = getCmailDir();
+  if (!cmailDir) return "";
+  ensureCmailDir(cmailDir);
+  return path.join(cmailDir, LABELS_SUBDIR);
+}
+
+function getLabelPath(labelName: string): string {
+  const dir = getLabelsDir();
+  if (!dir) return "";
+  return path.join(dir, `${sanitizeLabelName(labelName)}.md`);
+}
+
+export function readLabelNote(labelName: string): LabelNote | null {
+  try {
+    const file = getLabelPath(labelName);
+    if (!file || !fs.existsSync(file)) return null;
+    const raw = fs.readFileSync(file, "utf-8");
+    const { meta, body } = parseFrontmatter(raw);
+    return {
+      labelId: String(meta.labelId || ""),
+      labelName: String(meta.labelName || labelName),
+      excludeFromLearning: meta.excludeFromLearning === true,
+      body: body.trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeLabelNote(note: LabelNote): void {
+  const file = getLabelPath(note.labelName);
+  if (!file) throw new Error("Cmail フォルダが未設定です");
+  const meta: Record<string, unknown> = {
+    labelId: note.labelId,
+    labelName: note.labelName,
+    excludeFromLearning: note.excludeFromLearning,
+  };
+  const body = note.body || "## ラベルの内容\n（このラベルが付いたメールへの返信生成時に、AI に渡す文脈をここに書いてください。例: 取り組んでいるプロジェクトの概要、相手との関係性など）\n";
+  fs.writeFileSync(file, serializeFrontmatter(meta, body), "utf-8");
+}
+
+export function listLabelNotes(): LabelNote[] {
+  const dir = getLabelsDir();
+  if (!dir || !fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => {
+      try {
+        const raw = fs.readFileSync(path.join(dir, f), "utf-8");
+        const { meta, body } = parseFrontmatter(raw);
+        return {
+          labelId: String(meta.labelId || ""),
+          labelName: String(meta.labelName || f.replace(/\.md$/, "")),
+          excludeFromLearning: meta.excludeFromLearning === true,
+          body: body.trim(),
+        } as LabelNote;
+      } catch {
+        return null;
+      }
+    })
+    .filter((l): l is LabelNote => l !== null);
+}
+
+/**
+ * 与えられたラベル ID 一覧のうち、対応する label note の中身を返す。
+ * 名前で照合（Gmail はラベル ID と名前を両方持っている）。
+ */
+export function getLabelNotesByIds(labelIds: string[], allLabels: { id: string; name: string }[]): LabelNote[] {
+  const names = labelIds
+    .map((id) => allLabels.find((l) => l.id === id)?.name)
+    .filter((n): n is string => !!n);
+  const notes: LabelNote[] = [];
+  for (const name of names) {
+    const note = readLabelNote(name);
+    if (note) notes.push(note);
+  }
+  return notes;
+}
+
+export function shouldExcludeFromLearning(
+  labelIds: string[],
+  allLabels: { id: string; name: string }[]
+): boolean {
+  const notes = getLabelNotesByIds(labelIds, allLabels);
+  return notes.some((n) => n.excludeFromLearning);
+}

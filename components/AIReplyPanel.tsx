@@ -69,6 +69,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
           emailBody: message.body,
           tone,
           hint,
+          labelIds: message.labelIds,
         }),
       });
       const data = await res.json();
@@ -109,7 +110,10 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
         throw new Error(data.error || "送信エラー");
       }
 
-      const pattern: ReplyPattern = {
+      const pattern: ReplyPattern & {
+        sourceLabelIds?: string[];
+        contactDisplayName?: string;
+      } = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         date: new Date().toISOString(),
         emailSubject: message.subject,
@@ -119,6 +123,9 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
         aiGenerated,
         finalSent: reply,
         edited: aiGenerated !== reply,
+        kind: "reply",
+        sourceLabelIds: message.labelIds,
+        contactDisplayName: message.fromName,
       };
       await fetch("/api/learning", {
         method: "POST",

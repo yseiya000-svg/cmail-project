@@ -32,12 +32,35 @@ export interface ReplyPattern {
   id: string;
   date: string;
   emailSubject: string;
+  /** 返信時：受信者のメール、送信時：宛先のメール */
   emailFrom: string;
   tone: ReplyTone;
   hint: string;
   aiGenerated: string;
   finalSent: string;
   edited: boolean;
+  /** "reply"（既存）or "compose"（新規送信）。未指定は "reply" 扱い */
+  kind?: "reply" | "compose";
+}
+
+/** Contact note — frontmatter + メモ本文（contacts/<email>.md に保存） */
+export interface ContactNote {
+  email: string;
+  name?: string;
+  exchangeCount?: number;
+  firstSeen?: string;
+  lastSeen?: string;
+  /** Markdown ボディ — AI 生成の特徴・プロジェクト・口調メモなど */
+  body: string;
+}
+
+/** Label note — frontmatter + ラベルの内容（labels/<name>.md に保存） */
+export interface LabelNote {
+  labelId: string;
+  labelName: string;
+  excludeFromLearning: boolean;
+  /** Markdown ボディ — このラベルが付くメールに注入する文脈 */
+  body: string;
 }
 
 export type ReplyTone = "business" | "casual" | "polite" | "brief";

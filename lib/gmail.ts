@@ -152,7 +152,7 @@ export async function sendMessage(
   body: string,
   threadId?: string,
   replyHeaders?: SendReplyHeaders
-): Promise<void> {
+): Promise<{ id?: string; threadId?: string }> {
   const gmail = getGmailClient(accessToken);
 
   // Normalize the Message-ID — Gmail sometimes returns it with extra
@@ -189,10 +189,11 @@ export async function sendMessage(
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 
-  await gmail.users.messages.send({
+  const res = await gmail.users.messages.send({
     userId: "me",
     requestBody: { raw, threadId },
   });
+  return { id: res.data.id ?? undefined, threadId: res.data.threadId ?? undefined };
 }
 
 export async function listLabels(accessToken: string): Promise<GmailLabel[]> {
@@ -219,4 +220,51 @@ export async function modifyMessage(
     id: messageId,
     requestBody: { addLabelIds, removeLabelIds },
   });
+}
+
+/** 複数メッセージを一括でラベル変更（追加・削除）。 */
+export async function modifyMessages(
+  accessToken: string,
+  messageIds: string[],
+  addLabelIds: string[] = [],
+  removeLabelIds: string[] = []
+): Promise<void> {
+  const gmail = getGmailClient(accessToken);
+  // Gmail にはバッチ batchModify があるのでそれを使う（1リクエスト最大 1000 件）
+  await gmail.users.messages.batchModify({
+    userId: "me",
+    requestBody: {
+      ids: messageIds,
+      addLabelIds,
+      removeLabelIds,
+    },
+  });
+}
+
+export async function createLabel(
+  accessToken: string,
+  name: string
+): Promise<GmailLabel> {
+  const gmail = getGmailClient(accessToken);
+  const res = await gmail.users.labels.create({
+    userId: "me",
+    requestBody: {
+      name,
+      labelListVisibility: "labelShow",
+      messageListVisibility: "show",
+    },
+  });
+  const l = res.data;
+  return {
+    id: l.id!,
+    name: l.name!,
+    type: l.type || "user",
+    messagesUnread: 0,
+    messagesTotal: 0,
+  };
+}
+
+export async function deleteLabel(accessToken: string, id: string): Promise<void> {
+  const gmail = getGmailClient(accessToken);
+  await gmail.users.labels.delete({ userId: "me", id });
 }

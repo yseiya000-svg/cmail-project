@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { EmailMessage } from "@/types";
+import type { EmailMessage, GmailLabel } from "@/types";
 import AIReplyPanel from "./AIReplyPanel";
+import ContactPanel from "./ContactPanel";
 
 interface EmailViewProps {
   message: EmailMessage | null;
   onReplyLearned: () => void;
+  /** 全ラベル — labelId → name 変換と chips 表示用 */
+  labels?: GmailLabel[];
+  /** ラベル追加・削除 — 親が Gmail API 呼び出し */
+  onAddLabel?: (messageId: string, labelId: string) => void;
+  onRemoveLabel?: (messageId: string, labelId: string) => void;
 }
 
 /**
@@ -45,8 +51,16 @@ function buildSrcDoc(html: string, allowImages: boolean): string {
 </html>`;
 }
 
-export default function EmailView({ message, onReplyLearned }: EmailViewProps) {
+export default function EmailView({
+  message,
+  onReplyLearned,
+  labels = [],
+  onAddLabel,
+  onRemoveLabel,
+}: EmailViewProps) {
   const [showReply, setShowReply] = useState(false);
+  const [showContact, setShowContact] = useState(false);
+  const [showLabelMenu, setShowLabelMenu] = useState(false);
   // Load images by default (matches Gmail/Outlook behavior). Scripts are still
   // blocked by the iframe sandbox, so the worst case is a tracking pixel —
   // a reasonable trade for a usable inbox. Users who want stricter privacy
@@ -54,6 +68,11 @@ export default function EmailView({ message, onReplyLearned }: EmailViewProps) {
   const [allowImages, setAllowImages] = useState(true);
   const [iframeHeight, setIframeHeight] = useState(400);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const userLabels = labels.filter((l) => l.type === "user" && !l.name.startsWith("["));
+  const attachedLabels = message
+    ? userLabels.filter((l) => message.labelIds.includes(l.id))
+    : [];
 
   // Reset image state when the message changes.
   useEffect(() => {
@@ -105,6 +124,60 @@ export default function EmailView({ message, onReplyLearned }: EmailViewProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* 連絡先パネル */}
+            <button
+              onClick={() => setShowContact(true)}
+              className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+              title="この相手の連絡先ノート"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+              連絡先
+            </button>
+
+            {/* ラベル追加メニュー */}
+            <div className="relative">
+              <button
+                onClick={() => setShowLabelMenu((v) => !v)}
+                className="flex items-center gap-1 text-xs text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                title="ラベルを追加"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
+                </svg>
+                ラベル
+              </button>
+              {showLabelMenu && (
+                <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[200px] max-h-72 overflow-y-auto">
+                  {userLabels.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-gray-400">ラベルがありません</div>
+                  ) : (
+                    userLabels.map((l) => {
+                      const checked = message.labelIds.includes(l.id);
+                      return (
+                        <label
+                          key={l.id}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              if (checked) onRemoveLabel?.(message.id, l.id);
+                              else onAddLabel?.(message.id, l.id);
+                            }}
+                            className="w-3.5 h-3.5 accent-violet-600"
+                          />
+                          <span className="truncate text-gray-700">{l.name}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setShowReply((v) => !v)}
               className="flex items-center gap-1.5 text-sm bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors"
@@ -116,6 +189,29 @@ export default function EmailView({ message, onReplyLearned }: EmailViewProps) {
             </button>
           </div>
         </div>
+
+        {/* 付いているラベル chips */}
+        {attachedLabels.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {attachedLabels.map((l) => (
+              <span
+                key={l.id}
+                className="inline-flex items-center gap-1 text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full border border-violet-100"
+              >
+                {l.name}
+                <button
+                  onClick={() => onRemoveLabel?.(message.id, l.id)}
+                  className="text-violet-400 hover:text-violet-700"
+                  aria-label="ラベルを外す"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                  </svg>
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Email body */}
@@ -162,6 +258,23 @@ export default function EmailView({ message, onReplyLearned }: EmailViewProps) {
             setShowReply(false);
             onReplyLearned();
           }}
+        />
+      )}
+
+      {/* 連絡先ノートパネル */}
+      {showContact && (
+        <ContactPanel
+          email={message.from}
+          displayName={message.fromName}
+          onClose={() => setShowContact(false)}
+        />
+      )}
+
+      {/* 余白クリックでラベルメニューを閉じる */}
+      {showLabelMenu && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setShowLabelMenu(false)}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { isSafeUserPath } from "@/lib/path-validator";
+import { initCmailFolderStructure } from "@/lib/obsidian";
 
 /**
  * Cmail's settings file lives in the per-user app data folder when running
@@ -91,6 +92,17 @@ export function saveSettings(patch: Partial<CmailSettings>): CmailSettings {
   const file = getSettingsFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(updated, null, 2), "utf-8");
+
+  // Obsidian Cmail フォルダの中身を初回作成する（contacts/, labels/, my-preferences.md, reply-patterns.json）。
+  // settings.ts ⇄ obsidian.ts の循環参照は両者とも top-level で関数を呼ばないので live binding で解決される。
+  if (patch.obsidianCmailPath !== undefined && patch.obsidianCmailPath) {
+    try {
+      initCmailFolderStructure(patch.obsidianCmailPath);
+    } catch {
+      // best-effort
+    }
+  }
+
   return updated;
 }
 

@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { ReplyTone } from "@/types";
+import type { ReplyTone, ReplyPattern, GmailLabel } from "@/types";
 import { TONE_LABELS } from "@/types";
 
 interface ComposeModalProps {
   onClose: () => void;
+  /** Sidebar から渡される。送信時にラベルを付けるためのドロップダウンに使う */
+  labels?: GmailLabel[];
+  /** 送信成功時に呼ばれる（メール一覧の再読み込みなど） */
+  onSent?: () => void;
 }
 
-export default function ComposeModal({ onClose }: ComposeModalProps) {
+export default function ComposeModal({ onClose, labels = [], onSent }: ComposeModalProps) {
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -18,9 +22,15 @@ export default function ComposeModal({ onClose }: ComposeModalProps) {
   // AI 下書き支援
   const [draft, setDraft] = useState("");
   const [tone, setTone] = useState<ReplyTone>("business");
+  const [aiGenerated, setAiGenerated] = useState("");
   const [generating, setGenerating] = useState(false);
 
+  // 送信時に付けるラベル
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+
   const tones = Object.entries(TONE_LABELS) as [ReplyTone, string][];
+  const userLabels = labels.filter((l) => l.type === "user" && !l.name.startsWith("["));
 
   async function handleGenerate() {
     setGenerating(true);
@@ -29,11 +39,12 @@ export default function ComposeModal({ onClose }: ComposeModalProps) {
       const res = await fetch("/api/claude/compose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, draft, tone }),
+        body: JSON.stringify({ to, subject, draft, tone, labelIds: selectedLabelIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "生成エラー");
       setBody(data.body);
+      setAiGenerated(data.body);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -49,18 +60,52 @@ export default function ComposeModal({ onClose }: ComposeModalProps) {
       const res = await fetch("/api/gmail/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, body }),
+        body: JSON.stringify({
+          to,
+          subject,
+          body,
+          labelIds: selectedLabelIds,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "送信エラー");
       }
+
+      // 学習データに「新規送信」として記録（kind: "compose"）。
+      // 学習除外ラベル付きならサーバ側で弾かれる。
+      const pattern: ReplyPattern & { sourceLabelIds?: string[] } = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        date: new Date().toISOString(),
+        emailSubject: subject,
+        emailFrom: to,
+        tone,
+        hint: draft,
+        aiGenerated,
+        finalSent: body,
+        edited: aiGenerated !== body,
+        kind: "compose",
+        sourceLabelIds: selectedLabelIds,
+      };
+      await fetch("/api/learning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pattern),
+      }).catch(() => null);
+
+      onSent?.();
       onClose();
     } catch (e: any) {
       setError(e.message);
     } finally {
       setSending(false);
     }
+  }
+
+  function toggleLabel(id: string) {
+    setSelectedLabelIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }
 
   return (
@@ -161,7 +206,7 @@ export default function ComposeModal({ onClose }: ComposeModalProps) {
 
         {error && <div className="px-4 pb-1 text-xs text-red-500">{error}</div>}
 
-        {/* フッター */}
+        {/* フッター：送信ボタン + ラベル選択 */}
         <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-100">
           <button
             onClick={handleSend}
@@ -173,6 +218,42 @@ export default function ComposeModal({ onClose }: ComposeModalProps) {
             </svg>
             {sending ? "送信中..." : "送信"}
           </button>
+
+          {/* ラベル選択 */}
+          <div className="relative">
+            <button
+              onClick={() => setShowLabelPicker((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+              title="送信時に付けるラベル"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
+              </svg>
+              {selectedLabelIds.length === 0 ? "ラベル" : `ラベル (${selectedLabelIds.length})`}
+            </button>
+            {showLabelPicker && (
+              <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[180px] max-h-60 overflow-y-auto">
+                {userLabels.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-400">ラベルがありません</div>
+                ) : (
+                  userLabels.map((l) => (
+                    <label
+                      key={l.id}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLabelIds.includes(l.id)}
+                        onChange={() => toggleLabel(l.id)}
+                        className="w-3.5 h-3.5 accent-violet-600"
+                      />
+                      <span className="truncate text-gray-700">{l.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
