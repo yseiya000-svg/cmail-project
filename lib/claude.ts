@@ -109,6 +109,58 @@ function stripLeadingSubject(text: string): string {
   return lines.join("\n").trimStart();
 }
 
+export async function generateCompose(params: {
+  to: string;
+  subject: string;
+  draft: string;
+  tone: ReplyTone;
+}): Promise<string> {
+  const { to, subject, draft, tone } = params;
+
+  const client = getAnthropicClient();
+
+  const userProfile = readUserProfile();
+  const userPreferences = readUserPreferences();
+
+  const profileContext = userProfile
+    ? `\n## ユーザープロフィール\n${userProfile.slice(0, 600)}`
+    : "";
+
+  const preferencesContext = userPreferences
+    ? `\n## ユーザーの文章スタイル・好み（最優先で反映すること）\n${userPreferences}`
+    : "";
+
+  const systemPrompt = `あなたは山崎 Seiya のメール作成アシスタントです。
+ユーザーが書いた下書きやヒントをもとに、送信できる完成形のメール本文を作成します。
+
+【厳守ルール】
+- 本文のみを出力してください（挨拶から署名まで）。
+- 件名（Subject）は出力しないでください。「件名：」「Subject:」で始まる行を書いてはいけません。
+- 「以下がメール本文です:」などの前置き・メタコメントは一切不要です。
+- 出力は受信者にそのまま送信できる完成形である必要があります。
+
+${TONE_INSTRUCTIONS[tone]}
+${preferencesContext}
+${profileContext}`;
+
+  const userMessage = `以下の情報をもとに、メール本文を作成してください。
+
+宛先: ${to || "（未入力）"}
+件名: ${subject || "（未入力）"}
+${draft ? `\n下書き・ヒント:\n${draft}` : "（下書きなし — 件名から推測して作成してください）"}`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const block = response.content[0];
+  if (block.type !== "text") throw new Error("Unexpected response type");
+  return stripLeadingSubject(block.text);
+}
+
 /** Lightweight key probe used by /api/claude/test. Returns true on success. */
 export async function testApiKey(candidate: string): Promise<{ ok: boolean; error?: string }> {
   if (!candidate || candidate.length < 8) {
