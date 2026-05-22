@@ -1,6 +1,6 @@
 {
   "name": "cmail",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Gmail x Claude AI mail client",
   "author": {

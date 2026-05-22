@@ -17,6 +17,13 @@ yarn-debug.log*
 .env.local
 .env.*.local
 
+# OAuth credentials for "Desktop app" type Google OAuth client.
+# These are baked into the Electron build via electron-builder (asar) so the
+# packaged .exe can talk to Google, but they MUST NOT be committed to the
+# public GitHub repo. The values live in .env.local on the dev machine and
+# are mirrored into electron/credentials.js right before building.
+electron/credentials.js
+
 # Per-install runtime settings (these live in userData in prod, but might
 # show up at the project root during dev — never commit them)
 cmail-settings.json

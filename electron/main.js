@@ -61,6 +61,28 @@ function configureRuntimeEnv() {
   process.env.CMAIL_USER_DATA_DIR = userDataDir;
   process.env.CMAIL_APP_DIR = app.getAppPath();
 
+  // Google OAuth "Desktop app" credentials — bundled into the .exe so the
+  // packaged app can sign in without each user needing their own Google
+  // Cloud project. The file is gitignored; ship-time builds expect it
+  // alongside main.js. In dev, .env.local takes precedence (the require
+  // is wrapped so a missing file does not crash).
+  try {
+    // eslint-disable-next-line global-require
+    const creds = require("./credentials.js");
+    if (creds.GOOGLE_CLIENT_ID && !process.env.GOOGLE_CLIENT_ID) {
+      process.env.GOOGLE_CLIENT_ID = creds.GOOGLE_CLIENT_ID;
+    }
+    if (creds.GOOGLE_CLIENT_SECRET && !process.env.GOOGLE_CLIENT_SECRET) {
+      process.env.GOOGLE_CLIENT_SECRET = creds.GOOGLE_CLIENT_SECRET;
+    }
+  } catch {
+    if (!isDev) {
+      console.error(
+        "[cmail] electron/credentials.js not found in packaged build — Google sign-in will fail."
+      );
+    }
+  }
+
   // NEXTAUTH_SECRET: persist a per-install random secret if none is set.
   if (!process.env.NEXTAUTH_SECRET) {
     const secretFile = path.join(userDataDir, ".nextauth-secret");
