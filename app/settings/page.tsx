@@ -56,7 +56,7 @@ function PreferencesRegenSection() {
 export default function SettingsPage() {
   const { status } = useSession();
   const router = useRouter();
-  const { settings, loaded, setLocal, save, t } = useSettings();
+  const { settings, hasFetched, setLocal, save, t } = useSettings();
 
   // 編集用ドラフト。aiApiKey はマスク値ではなく「ユーザーが新たに入力した値」を保持する。
   // 空 = 「変更しない」。
@@ -75,12 +75,12 @@ export default function SettingsPage() {
   }, [status, router]);
 
   useEffect(() => {
-    if (loaded) {
+    if (hasFetched) {
       setDraft(settings);
       setBaseline(settings);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded]);
+  }, [hasFetched]);
 
   const isDirty = useMemo(() => {
     return (
@@ -174,7 +174,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (status === "loading" || !loaded) {
+  if (status === "loading" || !hasFetched) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-400">
         {t("loading")}

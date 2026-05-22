@@ -37,11 +37,49 @@ function parseFrom(from: string): { name: string; email: string } {
   return { name: from, email: from };
 }
 
+/**
+ * Build EmailMessage from a Gmail API message resource.
+ * When the resource was fetched with format "metadata", the payload has no
+ * body parts, so body / bodyHtml / messageIdHeader / references will be undefined.
+ * For format "full", everything is populated.
+ */
+function buildEmailMessage(msg: any): EmailMessage {
+  const headers = msg.payload?.headers || [];
+  const get = (name: string) =>
+    headers.find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || "";
+
+  const from = get("From");
+  const { name: fromName, email: fromEmail } = parseFrom(from);
+  const hasBody = !!msg.payload && (!!msg.payload.body?.data || !!msg.payload.parts);
+  const { text, html } = hasBody ? extractBody(msg.payload) : { text: "", html: "" };
+  const snippet = he.decode(msg.snippet || "");
+
+  return {
+    id: msg.id!,
+    threadId: msg.threadId!,
+    subject: get("Subject") || "(件名なし)",
+    from: fromEmail,
+    fromName,
+    to: get("To"),
+    date: get("Date"),
+    snippet,
+    // Only set body/bodyHtml when we actually fetched full content.
+    body: hasBody ? (text || he.decode(html.replace(/<[^>]+>/g, ""))) : undefined,
+    bodyHtml: html || undefined,
+    isRead: !msg.labelIds?.includes("UNREAD"),
+    isStarred: msg.labelIds?.includes("STARRED") ?? false,
+    labelIds: msg.labelIds || [],
+    messageIdHeader: get("Message-ID") || get("Message-Id") || undefined,
+    references: get("References") || undefined,
+  };
+}
+
 export async function listMessages(
   accessToken: string,
   labelIds: string[] = ["INBOX"],
   maxResults = 50,
-  pageToken?: string
+  pageToken?: string,
+  format: "metadata" | "full" = "metadata"
 ): Promise<{ messages: EmailMessage[]; nextPageToken?: string }> {
   const gmail = getGmailClient(accessToken);
 
@@ -55,50 +93,45 @@ export async function listMessages(
   const ids = listRes.data.messages || [];
   if (ids.length === 0) return { messages: [] };
 
+  // For the metadata format, request only the headers we actually display
+  // in the list — drastically reduces payload size and parse time.
+  const metadataHeaders =
+    format === "metadata"
+      ? ["From", "To", "Subject", "Date", "Message-ID", "References"]
+      : undefined;
+
   const details = await Promise.all(
     ids.map((m) =>
       gmail.users.messages.get({
         userId: "me",
         id: m.id!,
-        format: "full",
+        format,
+        ...(metadataHeaders ? { metadataHeaders } : {}),
       })
     )
   );
 
-  const messages: EmailMessage[] = details.map((res) => {
-    const msg = res.data;
-    const headers = msg.payload?.headers || [];
-    const get = (name: string) =>
-      headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value || "";
-
-    const from = get("From");
-    const { name: fromName, email: fromEmail } = parseFrom(from);
-    const { text, html } = extractBody(msg.payload);
-    const snippet = he.decode(msg.snippet || "");
-
-    return {
-      id: msg.id!,
-      threadId: msg.threadId!,
-      subject: get("Subject") || "(件名なし)",
-      from: fromEmail,
-      fromName,
-      to: get("To"),
-      date: get("Date"),
-      snippet,
-      body: text || he.decode(html.replace(/<[^>]+>/g, "")),
-      bodyHtml: html || undefined,
-      isRead: !msg.labelIds?.includes("UNREAD"),
-      isStarred: msg.labelIds?.includes("STARRED") ?? false,
-      labelIds: msg.labelIds || [],
-      messageIdHeader: get("Message-ID") || get("Message-Id") || undefined,
-      references: get("References") || undefined,
-    };
-  });
+  const messages: EmailMessage[] = details.map((res) => buildEmailMessage(res.data));
 
   return {
     messages,
     nextPageToken: listRes.data.nextPageToken ?? undefined,
   };
+}
+
+/**
+ * Fetch a single message in "full" format. Used by the lazy body loader:
+ * the message list is fetched cheaply with metadata only, and the body is
+ * pulled on demand when the user opens a message.
+ */
+export async function getMessage(accessToken: string, id: string): Promise<EmailMessage> {
+  const gmail = getGmailClient(accessToken);
+  const res = await gmail.users.messages.get({
+    userId: "me",
+    id,
+    format: "full",
+  });
+  return buildEmailMessage(res.data);
 }
 
 /**

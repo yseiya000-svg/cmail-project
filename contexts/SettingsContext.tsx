@@ -26,7 +26,13 @@ const DEFAULTS: CmailSettings = {
 
 interface SettingsContextValue {
   settings: CmailSettings;
+  /** Provider is ready to render — flipped immediately so the UI doesn't
+   *  block on the /api/settings round-trip. Always true after first render. */
   loaded: boolean;
+  /** True once /api/settings has actually responded (success or failure).
+   *  Use this for decisions that depend on real server state (e.g. whether
+   *  to show the onboarding modal). */
+  hasFetched: boolean;
   setLocal: (patch: Partial<CmailSettings>) => void;
   save: (patch?: Partial<CmailSettings>) => Promise<{ ok: boolean; error?: string }>;
   refresh: () => Promise<void>;
@@ -55,7 +61,11 @@ function applyLanguage(lang: Language) {
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<CmailSettings>(DEFAULTS);
-  const [loaded, setLoaded] = useState(false);
+  // `loaded` is intentionally true from the first render so consumers
+  // don't have to gate UI on the /api/settings round-trip. The actual
+  // server values land via `hasFetched` shortly after.
+  const [loaded, setLoaded] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -69,11 +79,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     } catch {
       applyTheme(DEFAULTS.theme);
       applyLanguage(DEFAULTS.language);
+    } finally {
+      setHasFetched(true);
     }
   }, []);
 
   useEffect(() => {
-    fetchSettings().finally(() => setLoaded(true));
+    fetchSettings();
   }, [fetchSettings]);
 
   useEffect(() => {
@@ -139,7 +151,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SettingsContext.Provider
-      value={{ settings, loaded, setLocal, save, refresh: fetchSettings, t, tf }}
+      value={{ settings, loaded, hasFetched, setLocal, save, refresh: fetchSettings, t, tf }}
     >
       {children}
     </SettingsContext.Provider>

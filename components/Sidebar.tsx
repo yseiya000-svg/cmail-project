@@ -93,6 +93,7 @@ export default function Sidebar({
   // 右クリックコンテキストメニュー
   type ContextMenu = { x: number; y: number; label: GmailLabel } | null;
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   // ラベルリネーム
   const [renamingLabelId, setRenamingLabelId] = useState<string | null>(null);
@@ -157,12 +158,19 @@ export default function Sidebar({
     }
   }
 
-  // コンテキストメニューの外クリックで閉じる
+  // コンテキストメニューの外クリックで閉じる（メニュー内クリックは生かす）
   useEffect(() => {
     if (!contextMenu) return;
-    function close() { setContextMenu(null); }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    function handleMouseDown(e: MouseEvent) {
+      if (
+        contextMenuRef.current &&
+        !contextMenuRef.current.contains(e.target as Node)
+      ) {
+        setContextMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
   }, [contextMenu]);
 
   const SYSTEM_LABELS = [
@@ -327,9 +335,9 @@ export default function Sidebar({
         {/* 右クリックコンテキストメニュー */}
         {contextMenu && (
           <div
+            ref={contextMenuRef}
             className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[140px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
-            onMouseDown={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => {

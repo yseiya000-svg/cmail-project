@@ -21,7 +21,7 @@ const SYSTEM_LABEL_IDS = new Set([
 export default function MailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { t, tf, settings, loaded: settingsLoaded } = useSettings();
+  const { t, tf, settings, hasFetched: settingsFetched } = useSettings();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [activeLabelId, setActiveLabelId] = useState("INBOX");
@@ -43,10 +43,13 @@ export default function MailPage() {
   }, [status, router]);
 
   useEffect(() => {
-    if (status === "authenticated" && settingsLoaded && !settings.aiApiKeySet) {
+    // Only show onboarding once we've actually heard back from /api/settings —
+    // otherwise we'd flash the modal on every cold start while the request
+    // is in flight, even when the user has a key configured.
+    if (status === "authenticated" && settingsFetched && !settings.aiApiKeySet) {
       setShowOnboarding(true);
     }
-  }, [status, settingsLoaded, settings.aiApiKeySet]);
+  }, [status, settingsFetched, settings.aiApiKeySet]);
 
   // ラベル読み込み
   const loadLabels = useCallback(() => {
@@ -98,7 +101,28 @@ export default function MailPage() {
 
   const handleSelectMessage = useCallback(
     (msg: EmailMessage) => {
+      // Optimistic: show what we already have (headers + snippet) immediately
+      // so the user sees the header instantly. The body loads in the background.
       setSelectedMessage(msg);
+
+      // Lazy body fetch — the list is fetched with metadata only for startup
+      // speed, so on open we pull the full message just-in-time.
+      const needsBody = msg.bodyHtml === undefined && msg.body === undefined;
+      if (needsBody) {
+        fetch(`/api/gmail/message?id=${encodeURIComponent(msg.id)}`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data?.message) return;
+            // Only replace if the user is still looking at this same message.
+            setSelectedMessage((curr) => (curr?.id === msg.id ? { ...curr, ...data.message } : curr));
+            // Also enrich the list entry so reopening is instant.
+            setMessages((prev) =>
+              prev.map((m) => (m.id === msg.id ? { ...m, ...data.message } : m))
+            );
+          })
+          .catch((err) => console.error("message fetch failed:", err));
+      }
+
       if (!msg.isRead) {
         setMessages((prev) =>
           prev.map((m) => (m.id === msg.id ? { ...m, isRead: true } : m))
