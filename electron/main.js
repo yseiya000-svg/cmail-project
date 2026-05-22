@@ -20,6 +20,12 @@ const PORT = 3000;
 const ORIGIN = `http://localhost:${PORT}`;
 const isDev = !app.isPackaged;
 
+// --- Cold-start tuning -------------------------------------------------------
+// Skip Windows occlusion calculations during boot — they delay first paint by
+// 100-300ms on Windows without affecting correctness for a single-window app.
+// (Documented Electron-on-Windows speedup; safe and reversible.)
+app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+
 // Google OAuth の遷移先。これらは Electron 内で開かないと
 // 認証 Cookie がアプリ側に届かないため、外部ブラウザ送りにしない。
 const OAUTH_ALLOWED_HOSTS = [
@@ -117,6 +123,10 @@ function configureRuntimeEnv() {
 function waitForServer(url, timeoutMs = 60000) {
   const start = Date.now();
   return new Promise((resolve, reject) => {
+    // Cold-start tuning: poll aggressively at first (every 50ms) so we don't
+    // sit idle for half a second after the server actually starts listening,
+    // then back off to 200ms to avoid burning CPU on slow boots.
+    let attempt = 0;
     const tryReq = () => {
       const req = http.get(url, (res) => {
         res.resume();
@@ -126,7 +136,9 @@ function waitForServer(url, timeoutMs = 60000) {
         if (Date.now() - start > timeoutMs) {
           reject(new Error("Next.js server start timeout"));
         } else {
-          setTimeout(tryReq, 500);
+          attempt += 1;
+          const delay = attempt < 20 ? 50 : 200;
+          setTimeout(tryReq, delay);
         }
       });
     };
@@ -140,7 +152,13 @@ function startNext() {
     const cmd = process.platform === "win32" ? "npm.cmd" : "npm";
     nextProcess = spawn(cmd, ["run", "dev"], {
       cwd: path.join(__dirname, ".."),
-      env: { ...process.env, PORT: String(PORT) },
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        // Skip Next.js' phone-home telemetry — saves a network probe on every
+        // cold start (300-800ms on slow / metered connections).
+        NEXT_TELEMETRY_DISABLED: "1",
+      },
       shell: true,
       stdio: ["ignore", "ignore", "ignore"],
       windowsHide: true,
@@ -157,6 +175,10 @@ function startNext() {
         HOSTNAME: "127.0.0.1",
         ELECTRON_RUN_AS_NODE: "1",
         NODE_ENV: "production",
+        // Skip Next.js' phone-home telemetry — saves a network probe on every
+        // cold start (300-800ms on slow / metered connections). This is the
+        // single largest post-install / post-update startup win.
+        NEXT_TELEMETRY_DISABLED: "1",
       },
       windowsHide: true,
       stdio: ["ignore", "ignore", "ignore"],
@@ -443,9 +465,37 @@ function setupAutoUpdater() {
 
   // Wait a beat so the splash → main app transition is not interrupted.
   setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error("[updater] check failed:", err?.message || err);
-    });
+    // Debounce: skip the network round-trip to GitHub if we already checked
+    // within the last hour. This prevents repeated restarts (common right
+    // after install or when iterating in dev) from hammering the GitHub API
+    // and slowing down startup on slow Wi-Fi.
+    const stampPath = path.join(app.getPath("userData"), ".last-update-check");
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    try {
+      if (fs.existsSync(stampPath)) {
+        const last = Number(fs.readFileSync(stampPath, "utf-8")) || 0;
+        const age = Date.now() - last;
+        if (age < ONE_HOUR_MS) {
+          const mins = Math.round(age / 60000);
+          console.log(`[updater] skip: checked ${mins}m ago`);
+          return;
+        }
+      }
+    } catch {
+      // best-effort — fall through to the check if the stamp is unreadable
+    }
+    autoUpdater
+      .checkForUpdatesAndNotify()
+      .then(() => {
+        try {
+          fs.writeFileSync(stampPath, String(Date.now()), "utf-8");
+        } catch {
+          // best-effort
+        }
+      })
+      .catch((err) => {
+        console.error("[updater] check failed:", err?.message || err);
+      });
   }, 5000);
 }
 
