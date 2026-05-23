@@ -65,6 +65,84 @@ function buildEmailMessage(msg: any): EmailMessage {
   };
 }
 
+/**
+ * 非 ASCII を含むヘッダ値を RFC 2047 "encoded-word" でラップ。
+ * これがないと Subject / To が文字化けする受信側がある。
+ */
+function encodeHeaderWord(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  if (/^[\x00-\x7F]*$/.test(text)) return text;
+  const b64 = Buffer.from(text, "utf-8").toString("base64");
+  return `=?UTF-8?B?${b64}?=`;
+}
+
+function encodeAddressHeader(value: string): string {
+  return value
+    .split(",")
+    .map((entry) => {
+      const trimmed = entry.trim();
+      const m = trimmed.match(/^(.*?)\s*<([^>]+)>\s*$/);
+      if (m) {
+        const name = m[1].replace(/^"|"$/g, "");
+        const addr = m[2];
+        return name ? `${encodeHeaderWord(name)} <${addr}>` : `<${addr}>`;
+      }
+      return encodeHeaderWord(trimmed);
+    })
+    .join(", ");
+}
+
+export interface SendReplyHeaders {
+  inReplyTo?: string;
+  references?: string;
+}
+
+export async function sendMessage(
+  accessToken: string,
+  to: string,
+  subject: string,
+  body: string,
+  threadId?: string,
+  replyHeaders?: SendReplyHeaders
+): Promise<{ id?: string; threadId?: string }> {
+  const gmail = getGmailClient(accessToken);
+
+  function normalizeMessageId(id: string | undefined): string {
+    if (!id) return "";
+    const trimmed = id.trim();
+    if (!trimmed) return "";
+    return /^<.*>$/.test(trimmed) ? trimmed : `<${trimmed}>`;
+  }
+
+  const inReplyTo = normalizeMessageId(replyHeaders?.inReplyTo);
+  const refsChain = [replyHeaders?.references?.trim(), inReplyTo]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  const headerLines: string[] = [
+    `To: ${encodeAddressHeader(to)}`,
+    `Subject: ${encodeHeaderWord(subject)}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "MIME-Version: 1.0",
+    "Content-Transfer-Encoding: 8bit",
+  ];
+  if (inReplyTo) headerLines.push(`In-Reply-To: ${inReplyTo}`);
+  if (refsChain) headerLines.push(`References: ${refsChain}`);
+
+  const raw = Buffer.from([...headerLines, "", body].join("\r\n"), "utf-8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const res = await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw, threadId },
+  });
+  return { id: res.data.id ?? undefined, threadId: res.data.threadId ?? undefined };
+}
+
 export async function getMessage(accessToken: string, id: string): Promise<EmailMessage> {
   const gmail = getGmailClient(accessToken);
   const res = await gmail.users.messages.get({

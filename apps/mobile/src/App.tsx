@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import Inbox from "./pages/Inbox";
 import EmailDetail from "./pages/EmailDetail";
+import Compose from "./pages/Compose";
 import AuthCallback from "./pages/AuthCallback";
 
 function AppRoutes() {
@@ -20,6 +21,10 @@ function AppRoutes() {
       <Route
         path="/inbox/:id"
         element={token ? <EmailDetail /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/compose"
+        element={token ? <Compose /> : <Navigate to="/login" replace />}
       />
       <Route
         path="*"

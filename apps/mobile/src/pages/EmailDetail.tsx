@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchMessage, type Email } from "../lib/api";
 
@@ -130,6 +130,23 @@ export default function EmailDetail() {
         >
           ← 受信トレイ
         </button>
+
+        {email && (
+          <Link
+            to={`/compose?reply=${encodeURIComponent(email.id)}`}
+            style={{
+              background: "var(--color-primary)",
+              color: "#fff",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              padding: "0.4rem 0.9rem",
+              borderRadius: "8px",
+              textDecoration: "none",
+            }}
+          >
+            返信
+          </Link>
+        )}
       </header>
 
       <div style={{ flex: 1, overflowY: "auto" }}>

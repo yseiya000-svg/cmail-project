@@ -163,6 +163,31 @@ export default function Inbox() {
           </ul>
         )}
       </div>
+
+      {/* 新規作成 FAB (フローティングアクションボタン) */}
+      <Link
+        to="/compose"
+        aria-label="新規メール作成"
+        style={{
+          position: "fixed",
+          right: "1.25rem",
+          bottom: "calc(1.5rem + var(--safe-bottom))",
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "var(--color-primary)",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "1.75rem",
+          fontWeight: 300,
+          textDecoration: "none",
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.3)",
+        }}
+      >
+        +
+      </Link>
     </main>
   );
 }
