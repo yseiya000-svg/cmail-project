@@ -1,0 +1,15 @@
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Vercel
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
+
+# Env (Vercel manages these as project env vars; never commit local copies)
+.env
+.env.local
+.env.*.local
