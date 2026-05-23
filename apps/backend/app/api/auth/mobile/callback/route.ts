@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
   const tokens = await tokenRes.json() as {
     access_token: string;
     refresh_token?: string;
+    expires_in?: number;
   };
 
   if (!tokens.access_token) {
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
   const jwt = await createMobileJwt({
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token ?? "",
+    accessTokenExpiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
     email: user.email,
     name: user.name,
   });

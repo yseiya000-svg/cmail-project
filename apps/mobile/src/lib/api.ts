@@ -1,4 +1,5 @@
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "https://cmail-project-backend.vercel.app";
+const TOKEN_KEY = "cmail_auth_token";
 
 export type Email = {
   id: string;
@@ -17,22 +18,49 @@ export type Email = {
   references?: string;
 };
 
+/**
+ * バックエンドが access_token をリフレッシュした際に
+ * X-Cmail-New-Token ヘッダで新しい JWT を返してくる。
+ * これを localStorage に保存し、AuthContext にも通知する。
+ */
+function captureRefreshedToken(res: Response) {
+  const newToken = res.headers.get("X-Cmail-New-Token");
+  if (newToken) {
+    localStorage.setItem(TOKEN_KEY, newToken);
+    window.dispatchEvent(new CustomEvent("cmail-token-refresh", { detail: newToken }));
+  }
+}
+
+async function authedFetch(token: string, url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  captureRefreshedToken(res);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `HTTP ${res.status}`);
+  }
+  return res;
+}
+
 export async function fetchMessages(
   token: string,
   pageToken?: string
 ): Promise<{ messages: Email[]; nextPageToken?: string }> {
   const params = new URLSearchParams({ maxResults: "30" });
   if (pageToken) params.set("pageToken", pageToken);
-
-  const res = await fetch(`${BACKEND_URL}/api/gmail/messages?${params}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `HTTP ${res.status}`);
-  }
+  const res = await authedFetch(token, `${BACKEND_URL}/api/gmail/messages?${params}`);
   return res.json();
+}
+
+export async function fetchMessage(token: string, id: string): Promise<Email> {
+  const res = await authedFetch(token, `${BACKEND_URL}/api/gmail/message?id=${encodeURIComponent(id)}`);
+  const data = await res.json();
+  return data.message;
 }
 
 export type SendParams = {
@@ -45,30 +73,9 @@ export type SendParams = {
 };
 
 export async function sendMessage(token: string, params: SendParams): Promise<void> {
-  const res = await fetch(`${BACKEND_URL}/api/gmail/send`, {
+  await authedFetch(token, `${BACKEND_URL}/api/gmail/send`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `HTTP ${res.status}`);
-  }
-}
-
-export async function fetchMessage(token: string, id: string): Promise<Email> {
-  const res = await fetch(`${BACKEND_URL}/api/gmail/message?id=${encodeURIComponent(id)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `HTTP ${res.status}`);
-  }
-  const data = await res.json();
-  return data.message;
 }
