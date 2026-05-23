@@ -29,6 +29,8 @@ export function middleware(request: NextRequest) {
   if (isAllowed) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("Vary", "Origin");
+    // X-Cmail-New-Token をクライアントが JS から読めるよう公開
+    response.headers.set("Access-Control-Expose-Headers", "X-Cmail-New-Token");
   }
   return response;
 }

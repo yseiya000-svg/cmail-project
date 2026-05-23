@@ -3,6 +3,8 @@ import { SignJWT, jwtVerify } from "jose";
 export type MobileJwtPayload = {
   accessToken: string;
   refreshToken: string;
+  /** Google access_token の期限切れ時刻 (ms epoch)。古い JWT では undefined のため、その場合は強制リフレッシュする。 */
+  accessTokenExpiresAt?: number;
   email: string;
   name: string;
 };
