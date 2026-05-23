@@ -13,6 +13,8 @@ export type Email = {
   bodyHtml?: string;
   isRead: boolean;
   isStarred: boolean;
+  messageIdHeader?: string;
+  references?: string;
 };
 
 export async function fetchMessages(
@@ -31,6 +33,31 @@ export async function fetchMessages(
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export type SendParams = {
+  to: string;
+  subject: string;
+  body: string;
+  threadId?: string;
+  inReplyTo?: string;
+  references?: string;
+};
+
+export async function sendMessage(token: string, params: SendParams): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/api/gmail/send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `HTTP ${res.status}`);
+  }
 }
 
 export async function fetchMessage(token: string, id: string): Promise<Email> {
