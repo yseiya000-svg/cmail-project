@@ -65,6 +65,16 @@ function buildEmailMessage(msg: any): EmailMessage {
   };
 }
 
+export async function getMessage(accessToken: string, id: string): Promise<EmailMessage> {
+  const gmail = getGmailClient(accessToken);
+  const res = await gmail.users.messages.get({
+    userId: "me",
+    id,
+    format: "full",
+  });
+  return buildEmailMessage(res.data);
+}
+
 export async function listMessages(
   accessToken: string,
   labelIds: string[] = ["INBOX"],

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import Inbox from "./pages/Inbox";
+import EmailDetail from "./pages/EmailDetail";
 import AuthCallback from "./pages/AuthCallback";
 
 function AppRoutes() {
@@ -15,6 +16,10 @@ function AppRoutes() {
       <Route
         path="/inbox"
         element={token ? <Inbox /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/inbox/:id"
+        element={token ? <EmailDetail /> : <Navigate to="/login" replace />}
       />
       <Route
         path="*"
