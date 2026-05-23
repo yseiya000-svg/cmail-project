@@ -83,7 +83,7 @@ function EmailRow({ email }: { email: Email }) {
 }
 
 export default function Inbox() {
-  const { token, signOut } = useAuth();
+  const { token } = useAuth();
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,12 +121,19 @@ export default function Inbox() {
         borderBottom: "1px solid var(--color-border)",
       }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>受信トレイ</h1>
-        <button
-          onClick={signOut}
-          style={{ background: "none", color: "var(--color-primary)", fontSize: "0.9rem" }}
+        <Link
+          to="/settings"
+          aria-label="設定"
+          style={{
+            background: "none",
+            color: "var(--color-primary)",
+            fontSize: "0.9rem",
+            textDecoration: "none",
+            padding: "0.25rem 0.5rem",
+          }}
         >
-          サインアウト
-        </button>
+          設定
+        </Link>
       </header>
 
       <div style={{ flex: 1, overflowY: "auto" }}>

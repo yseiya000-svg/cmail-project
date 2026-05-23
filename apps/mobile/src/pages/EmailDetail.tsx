@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { fetchMessage, type Email } from "../lib/api";
+import { fetchMessage, generateAiReply, type Email, type ReplyTone } from "../lib/api";
+import { getAiKey } from "../lib/aiKey";
+
+const TONE_LABELS: Record<ReplyTone, string> = {
+  business: "ビジネス",
+  casual: "カジュアル",
+  polite: "丁寧",
+  brief: "簡潔",
+};
+
+const AI_BODY_SESSION_KEY = "cmail_ai_body";
 
 function formatFullDate(dateStr: string): string {
   try {
@@ -84,6 +94,39 @@ export default function EmailDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // AI 返信モーダル
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiTone, setAiTone] = useState<ReplyTone>("business");
+  const [aiHint, setAiHint] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    if (!email || !token) return;
+    const aiKey = getAiKey();
+    if (!aiKey) {
+      setAiError("設定画面で Anthropic API キーを登録してください");
+      return;
+    }
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const reply = await generateAiReply(token, aiKey, {
+        emailFrom: email.from,
+        emailSubject: email.subject,
+        emailBody: email.body || email.snippet || "",
+        tone: aiTone,
+        hint: aiHint.trim() || undefined,
+      });
+      // Compose に受け渡し
+      sessionStorage.setItem(AI_BODY_SESSION_KEY, reply);
+      navigate(`/compose?reply=${encodeURIComponent(email.id)}&fromAi=1`);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "生成失敗");
+      setAiGenerating(false);
+    }
+  }
+
   const load = useCallback(async () => {
     if (!token || !id) return;
     setLoading(true);
@@ -132,22 +175,156 @@ export default function EmailDetail() {
         </button>
 
         {email && (
-          <Link
-            to={`/compose?reply=${encodeURIComponent(email.id)}`}
-            style={{
-              background: "var(--color-primary)",
-              color: "#fff",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              padding: "0.4rem 0.9rem",
-              borderRadius: "8px",
-              textDecoration: "none",
-            }}
-          >
-            返信
-          </Link>
+          <div style={{ display: "flex", gap: "0.4rem" }}>
+            <button
+              onClick={() => setAiOpen(true)}
+              style={{
+                background: "var(--color-surface)",
+                color: "var(--color-primary)",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                padding: "0.4rem 0.7rem",
+                borderRadius: "8px",
+              }}
+            >
+              🤖 AI
+            </button>
+            <Link
+              to={`/compose?reply=${encodeURIComponent(email.id)}`}
+              style={{
+                background: "var(--color-primary)",
+                color: "#fff",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                padding: "0.4rem 0.9rem",
+                borderRadius: "8px",
+                textDecoration: "none",
+              }}
+            >
+              返信
+            </Link>
+          </div>
         )}
       </header>
+
+      {/* AI 返信モーダル */}
+      {aiOpen && email && (
+        <div
+          onClick={() => !aiGenerating && setAiOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            zIndex: 100,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 500,
+              background: "var(--color-bg)",
+              borderTopLeftRadius: "20px",
+              borderTopRightRadius: "20px",
+              padding: "1.5rem 1.25rem calc(1.5rem + var(--safe-bottom))",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+            }}
+          >
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>AI で返信を生成</h2>
+
+            <div>
+              <label style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+                トーン
+              </label>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                {(Object.keys(TONE_LABELS) as ReplyTone[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setAiTone(t)}
+                    style={{
+                      background: aiTone === t ? "var(--color-primary)" : "var(--color-surface)",
+                      color: aiTone === t ? "#fff" : "var(--color-text)",
+                      fontSize: "0.85rem",
+                      padding: "0.5rem 0.9rem",
+                      borderRadius: "8px",
+                      fontWeight: aiTone === t ? 600 : 400,
+                    }}
+                  >
+                    {TONE_LABELS[t]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)", display: "block", marginBottom: "0.4rem" }}>
+                ヒント（任意）
+              </label>
+              <textarea
+                value={aiHint}
+                onChange={(e) => setAiHint(e.target.value)}
+                placeholder="例: 来週は出張なので翌週以降で調整したい"
+                rows={3}
+                style={{
+                  width: "100%",
+                  padding: "0.6rem 0.8rem",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "10px",
+                  color: "var(--color-text)",
+                  fontSize: "0.9rem",
+                  fontFamily: "inherit",
+                  resize: "none",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {aiError && (
+              <div style={{ color: "#ff3b30", fontSize: "0.85rem" }}>{aiError}</div>
+            )}
+
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+              <button
+                onClick={() => setAiOpen(false)}
+                disabled={aiGenerating}
+                style={{
+                  flex: 1,
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontSize: "0.95rem",
+                  padding: "0.85rem",
+                  borderRadius: "10px",
+                  opacity: aiGenerating ? 0.5 : 1,
+                }}
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={handleGenerate}
+                disabled={aiGenerating}
+                style={{
+                  flex: 1,
+                  background: "var(--color-primary)",
+                  color: "#fff",
+                  fontSize: "0.95rem",
+                  fontWeight: 600,
+                  padding: "0.85rem",
+                  borderRadius: "10px",
+                  opacity: aiGenerating ? 0.5 : 1,
+                }}
+              >
+                {aiGenerating ? "生成中..." : "生成"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {loading && (

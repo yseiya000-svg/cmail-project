@@ -79,3 +79,30 @@ export async function sendMessage(token: string, params: SendParams): Promise<vo
     body: JSON.stringify(params),
   });
 }
+
+export type ReplyTone = "business" | "casual" | "polite" | "brief";
+
+export type AiReplyParams = {
+  emailFrom: string;
+  emailSubject: string;
+  emailBody: string;
+  tone: ReplyTone;
+  hint?: string;
+};
+
+export async function generateAiReply(
+  token: string,
+  aiKey: string,
+  params: AiReplyParams
+): Promise<string> {
+  const res = await authedFetch(token, `${BACKEND_URL}/api/ai/reply`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Cmail-AI-Key": aiKey,
+    },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  return data.reply;
+}
