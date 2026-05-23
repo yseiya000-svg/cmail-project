@@ -66,7 +66,8 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
         body: JSON.stringify({
           emailFrom: message.from,
           emailSubject: message.subject,
-          emailBody: message.body,
+          // Falls back to snippet if the body is still being lazy-loaded.
+          emailBody: message.body || message.snippet || "",
           tone,
           hint,
           labelIds: message.labelIds,

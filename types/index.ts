@@ -7,7 +7,9 @@ export interface EmailMessage {
   to: string;
   date: string;
   snippet: string;
-  body: string;
+  /** Plain text body. Undefined when fetched with metadata-only format
+   *  (lazy body loading) — populate via /api/gmail/message on open. */
+  body?: string;
   bodyHtml?: string;
   isRead: boolean;
   isStarred: boolean;

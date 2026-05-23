@@ -24,6 +24,13 @@ yarn-debug.log*
 # are mirrored into electron/credentials.js right before building.
 electron/credentials.js
 
+# Local-only secret store (Google OAuth client ID/secret, Anthropic key etc.).
+# Never commit — this directory exists only on Seiya's dev machine.
+Client Codes/
+
+# Claude Code per-project settings (machine-local agent state)
+.claude/
+
 # Per-install runtime settings (these live in userData in prod, but might
 # show up at the project root during dev — never commit them)
 cmail-settings.json
