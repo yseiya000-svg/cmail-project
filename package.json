@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "dev:desktop": "npm run dev --workspace cmail-desktop",
+    "app:desktop": "npm run app --workspace cmail-desktop",
     "build:desktop": "npm run build:app --workspace cmail-desktop",
     "release:desktop": "npm run release --workspace cmail-desktop",
     "dev:mobile": "npm run dev --workspace cmail-mobile",
