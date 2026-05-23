@@ -23,6 +23,10 @@ yarn-debug.log*
 # public GitHub repo. The values live in .env.local on the dev machine and
 # are mirrored into electron/credentials.js right before building.
 electron/credentials.js
+# Same file, post-monorepo path (apps/desktop layout):
+apps/desktop/electron/credentials.js
+# Belt-and-braces: any depth ending in electron/credentials.js
+**/electron/credentials.js
 
 # Local-only secret store (Google OAuth client ID/secret, Anthropic key etc.).
 # Never commit — this directory exists only on Seiya's dev machine.
