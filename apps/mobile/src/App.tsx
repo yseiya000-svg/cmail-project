@@ -2,24 +2,15 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import Inbox from "./pages/Inbox";
+import AuthCallback from "./pages/AuthCallback";
 
 function AppRoutes() {
-  const { token, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        background: "var(--color-bg)",
-      }} />
-    );
-  }
+  const { token } = useAuth();
 
   return (
     <Routes>
+      {/* OAuth コールバック — 認証状態に関係なく常にアクセス可能 */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/login" element={<Login />} />
       <Route
         path="/inbox"

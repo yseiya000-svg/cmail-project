@@ -7,7 +7,8 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
 function errorRedirect(reason: string) {
-  return NextResponse.redirect(`cmail://auth/callback?error=${encodeURIComponent(reason)}`);
+  const mobileUrl = process.env.CMAIL_MOBILE_URL ?? "http://localhost:5173";
+  return NextResponse.redirect(`${mobileUrl}/auth/callback?error=${encodeURIComponent(reason)}`);
 }
 
 export async function GET(request: NextRequest) {
@@ -64,5 +65,6 @@ export async function GET(request: NextRequest) {
     name: user.name,
   });
 
-  return NextResponse.redirect(`cmail://auth/callback?token=${encodeURIComponent(jwt)}`);
+  const mobileUrl = process.env.CMAIL_MOBILE_URL ?? "http://localhost:5173";
+  return NextResponse.redirect(`${mobileUrl}/auth/callback?token=${encodeURIComponent(jwt)}`);
 }
