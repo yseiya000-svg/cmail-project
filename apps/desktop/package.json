@@ -22,7 +22,7 @@
     "release": "npm run build:app && electron-builder --win --publish always"
   },
   "dependencies": {
-    "next": "15.3.2",
+    "next": "15.3.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "next-auth": "^4.24.11",
@@ -42,7 +42,7 @@
     "@tailwindcss/postcss": "^4",
     "postcss": "^8",
     "eslint": "^9",
-    "eslint-config-next": "15.3.2",
+    "eslint-config-next": "15.3.9",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
     "concurrently": "^9.0.0",
