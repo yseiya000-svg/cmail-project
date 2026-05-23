@@ -6,8 +6,11 @@ export type Email = {
   subject: string;
   fromName: string;
   from: string;
+  to?: string;
   snippet: string;
   date: string;
+  body?: string;
+  bodyHtml?: string;
   isRead: boolean;
   isStarred: boolean;
 };
@@ -28,4 +31,17 @@ export async function fetchMessages(
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export async function fetchMessage(token: string, id: string): Promise<Email> {
+  const res = await fetch(`${BACKEND_URL}/api/gmail/message?id=${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.message;
 }

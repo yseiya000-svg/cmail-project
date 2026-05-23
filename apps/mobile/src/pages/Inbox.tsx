@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchMessages, type Email } from "../lib/api";
 
@@ -15,62 +16,68 @@ function formatDate(dateStr: string): string {
 
 function EmailRow({ email }: { email: Email }) {
   return (
-    <li style={{
-      display: "flex",
-      gap: "0.75rem",
-      padding: "0.875rem 1.25rem",
-      borderBottom: "1px solid var(--color-border)",
-      cursor: "pointer",
-      background: email.isRead ? "var(--color-bg)" : "var(--color-surface)",
-    }}>
-      {/* 未読インジケーター */}
-      <div style={{
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        background: email.isRead ? "transparent" : "var(--color-primary)",
-        flexShrink: 0,
-        marginTop: 6,
-      }} />
+    <li style={{ listStyle: "none" }}>
+      <Link
+        to={`/inbox/${email.id}`}
+        style={{
+          display: "flex",
+          gap: "0.75rem",
+          padding: "0.875rem 1.25rem",
+          borderBottom: "1px solid var(--color-border)",
+          background: email.isRead ? "var(--color-bg)" : "var(--color-surface)",
+          color: "inherit",
+          textDecoration: "none",
+        }}
+      >
+        {/* 未読インジケーター */}
+        <div style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: email.isRead ? "transparent" : "var(--color-primary)",
+          flexShrink: 0,
+          marginTop: 6,
+        }} />
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.2rem" }}>
-          <span style={{
-            fontWeight: email.isRead ? 400 : 700,
-            fontSize: "0.95rem",
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.2rem" }}>
+            <span style={{
+              fontWeight: email.isRead ? 400 : 700,
+              fontSize: "0.95rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: "70%",
+            }}>
+              {email.fromName || email.from}
+            </span>
+            <span style={{ fontSize: "0.78rem", color: "var(--color-text-secondary)", flexShrink: 0 }}>
+              {formatDate(email.date)}
+            </span>
+          </div>
+
+          <div style={{
+            fontWeight: email.isRead ? 400 : 600,
+            fontSize: "0.88rem",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            maxWidth: "70%",
+            marginBottom: "0.15rem",
           }}>
-            {email.fromName || email.from}
-          </span>
-          <span style={{ fontSize: "0.78rem", color: "var(--color-text-secondary)", flexShrink: 0 }}>
-            {formatDate(email.date)}
-          </span>
-        </div>
+            {email.subject}
+          </div>
 
-        <div style={{
-          fontWeight: email.isRead ? 400 : 600,
-          fontSize: "0.88rem",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          marginBottom: "0.15rem",
-        }}>
-          {email.subject}
+          <div style={{
+            fontSize: "0.82rem",
+            color: "var(--color-text-secondary)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {email.snippet}
+          </div>
         </div>
-
-        <div style={{
-          fontSize: "0.82rem",
-          color: "var(--color-text-secondary)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
-          {email.snippet}
-        </div>
-      </div>
+      </Link>
     </li>
   );
 }
