@@ -1,8 +1,7 @@
+import { useAuth } from "../contexts/AuthContext";
+
 export default function Login() {
-  function handleSignIn() {
-    // TODO P5: @capacitor/browser で OAuth フローを開始
-    alert("OAuth は P5 で実装します");
-  }
+  const { signIn } = useAuth();
 
   return (
     <main style={{
@@ -27,11 +26,11 @@ export default function Login() {
       </div>
 
       <button
-        onClick={handleSignIn}
+        onClick={signIn}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "0.75rem",
+          justifyContent: "center",
           padding: "0.875rem 1.75rem",
           background: "var(--color-primary)",
           color: "#fff",
@@ -40,7 +39,6 @@ export default function Login() {
           fontWeight: 600,
           width: "100%",
           maxWidth: "320px",
-          justifyContent: "center",
         }}
       >
         Google でサインイン

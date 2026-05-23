@@ -1,4 +1,8 @@
+import { useAuth } from "../contexts/AuthContext";
+
 export default function Inbox() {
+  const { signOut } = useAuth();
+
   return (
     <main style={{
       display: "flex",
@@ -9,10 +13,24 @@ export default function Inbox() {
       paddingBottom: "var(--safe-bottom)",
     }}>
       <header style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
         padding: "1rem 1.25rem 0.75rem",
         borderBottom: "1px solid var(--color-border)",
       }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>受信トレイ</h1>
+        <button
+          onClick={signOut}
+          style={{
+            background: "none",
+            color: "var(--color-primary)",
+            fontSize: "0.9rem",
+            padding: "0.25rem 0.5rem",
+          }}
+        >
+          サインアウト
+        </button>
       </header>
 
       <div style={{
