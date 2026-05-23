@@ -10,7 +10,9 @@
 ' has historically broken the script with cryptic "object required" errors.
 
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = "E:\Claude Projects\Cmail Project"
+' Post-monorepo: the desktop app lives under apps/desktop/. The Next.js
+' server, Electron config, and package.json all expect this as cwd.
+WshShell.CurrentDirectory = "E:\Claude Projects\Cmail Project\apps\desktop"
 
 ' 1) Kill anything still listening on :3000 (stale Next.js dev server).
 '    netstat shows the PID in the 5th whitespace-separated column.
