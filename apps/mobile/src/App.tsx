@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Inbox from "./pages/Inbox";
 import EmailDetail from "./pages/EmailDetail";
 import Compose from "./pages/Compose";
+import Settings from "./pages/Settings";
 import AuthCallback from "./pages/AuthCallback";
 
 function AppRoutes() {
@@ -25,6 +26,10 @@ function AppRoutes() {
       <Route
         path="/compose"
         element={token ? <Compose /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/settings"
+        element={token ? <Settings /> : <Navigate to="/login" replace />}
       />
       <Route
         path="*"

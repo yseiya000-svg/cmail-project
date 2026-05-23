@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
       headers: {
         "Access-Control-Allow-Origin": isAllowed ? origin : "",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Cmail-AI-Key",
         "Access-Control-Max-Age": "86400",
       },
     });

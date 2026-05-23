@@ -9,6 +9,7 @@ export default function Compose() {
   const { token } = useAuth();
 
   const replyId = params.get("reply");
+  const fromAi = params.get("fromAi") === "1";
 
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
@@ -31,16 +32,24 @@ export default function Compose() {
         setThreadId(m.threadId);
         setInReplyTo(m.messageIdHeader);
         setReferences(m.references);
-        // 引用ブロック
-        const quoted = (m.body || m.snippet || "")
-          .split("\n")
-          .map((line) => `> ${line}`)
-          .join("\n");
-        setBody(`\n\n--- ${m.fromName || m.from} さんからのメール ---\n${quoted}`);
+
+        if (fromAi) {
+          // AI が生成した本文を sessionStorage から取り出して入れる
+          const aiBody = sessionStorage.getItem("cmail_ai_body");
+          sessionStorage.removeItem("cmail_ai_body");
+          setBody(aiBody ?? "");
+        } else {
+          // 手動返信: 引用ブロック
+          const quoted = (m.body || m.snippet || "")
+            .split("\n")
+            .map((line) => `> ${line}`)
+            .join("\n");
+          setBody(`\n\n--- ${m.fromName || m.from} さんからのメール ---\n${quoted}`);
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "読み込み失敗"))
       .finally(() => setPrefilling(false));
-  }, [replyId, token]);
+  }, [replyId, token, fromAi]);
 
   async function handleSend() {
     if (!token) return;
