@@ -2,14 +2,31 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getAiKey, setAiKey, maskedAiKey } from "../lib/aiKey";
+import { debugObsidian } from "../lib/api";
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, token } = useAuth();
 
   const [storedKey, setStoredKey] = useState(() => getAiKey() ?? "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [debugResult, setDebugResult] = useState<string>("");
+  const [debugLoading, setDebugLoading] = useState(false);
+
+  async function runDebug() {
+    if (!token) return;
+    setDebugLoading(true);
+    setDebugResult("取得中...");
+    try {
+      const result = await debugObsidian(token);
+      setDebugResult(JSON.stringify(result, null, 2));
+    } catch (err) {
+      setDebugResult("エラー: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setDebugLoading(false);
+    }
+  }
 
   function startEdit() {
     setDraft("");
@@ -143,6 +160,48 @@ export default function Settings() {
                 </button>
               </div>
             </div>
+          )}
+        </section>
+
+        {/* Obsidian 連携デバッグ */}
+        <section style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+            Obsidian 連携デバッグ
+          </h2>
+          <p style={{ fontSize: "0.82rem", color: "var(--color-text-secondary)", marginBottom: "0.75rem", lineHeight: 1.5 }}>
+            GitHub 連携が正しく動いているか確認します。
+          </p>
+          <button
+            onClick={runDebug}
+            disabled={debugLoading}
+            style={{
+              background: "var(--color-surface)",
+              color: "var(--color-primary)",
+              fontSize: "0.9rem",
+              fontWeight: 600,
+              padding: "0.6rem 1rem",
+              borderRadius: "8px",
+              opacity: debugLoading ? 0.5 : 1,
+            }}
+          >
+            {debugLoading ? "確認中..." : "GitHub 連携をテスト"}
+          </button>
+          {debugResult && (
+            <pre style={{
+              marginTop: "0.75rem",
+              padding: "0.75rem",
+              background: "var(--color-surface)",
+              borderRadius: "8px",
+              fontSize: "0.72rem",
+              fontFamily: "ui-monospace, Menlo, monospace",
+              color: "var(--color-text)",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+              maxHeight: "400px",
+              overflowY: "auto",
+            }}>
+              {debugResult}
+            </pre>
           )}
         </section>
 

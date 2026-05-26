@@ -106,3 +106,8 @@ export async function generateAiReply(
   const data = await res.json();
   return data.reply;
 }
+
+export async function debugObsidian(token: string): Promise<unknown> {
+  const res = await authedFetch(token, `${BACKEND_URL}/api/debug/obsidian`);
+  return res.json();
+}
