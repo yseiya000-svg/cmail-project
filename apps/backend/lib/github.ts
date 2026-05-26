@@ -23,6 +23,9 @@ interface GitHubTree {
   truncated: boolean;
 }
 
+// AI 返信に不要なフォルダ（自動生成データ・ゴミ箱）
+const EXCLUDE_PREFIXES = ["Notion/", ".trash/", ".obsidian/"];
+
 export async function fetchObsidianNotes(): Promise<string> {
   if (!GITHUB_PAT || !GITHUB_OWNER || !GITHUB_REPO) return "";
 
@@ -43,9 +46,18 @@ export async function fetchObsidianNotes(): Promise<string> {
     if (!treeRes.ok) return "";
 
     const tree: GitHubTree = await treeRes.json();
-    const mdFiles = tree.tree
-      .filter((f) => f.type === "blob" && f.path.endsWith(".md"))
-      .slice(0, MAX_FILES);
+
+    const allMd = tree.tree.filter(
+      (f) =>
+        f.type === "blob" &&
+        f.path.endsWith(".md") &&
+        !EXCLUDE_PREFIXES.some((prefix) => f.path.startsWith(prefix))
+    );
+
+    // my-preferences.md を最優先、残りはその後に並べる
+    const pinned = allMd.filter((f) => f.path.includes("my-preferences"));
+    const rest = allMd.filter((f) => !f.path.includes("my-preferences"));
+    const mdFiles = [...pinned, ...rest].slice(0, MAX_FILES);
 
     if (mdFiles.length === 0) return "";
 
