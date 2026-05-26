@@ -17,8 +17,9 @@ const TONE_INSTRUCTIONS: Record<ReplyTone, string> = {
 };
 
 /**
- * モバイル版の返信生成。デスクトップ版と違って Obsidian の学習データは
- * 持ち込めないので、純粋にメール内容 + トーン + ヒントだけで生成する。
+ * モバイル版の返信生成。
+ * learningData が渡された場合（Obsidian GitHub 連携）、Claude のプロンプトに
+ * ユーザーのノートを参考文脈として追加し、文体・価値観を反映した返信を生成する。
  */
 export async function generateReply(params: {
   apiKey: string;
@@ -28,10 +29,15 @@ export async function generateReply(params: {
   tone: ReplyTone;
   hint?: string;
   userName?: string;
+  learningData?: string; // Obsidian ノートのテキスト（GitHub から取得）
 }): Promise<string> {
   if (!params.apiKey) throw new MissingApiKeyError();
 
   const client = new Anthropic({ apiKey: params.apiKey });
+
+  const learningSection = params.learningData
+    ? `\n\n## ユーザーの参考ノート（Obsidian）\n以下はユーザーが書いた Obsidian のノートです。\n文体・口調・よく使う表現・価値観の参考にしてください。返信に直接引用はしないでください。\n\n${params.learningData}`
+    : "";
 
   const systemPrompt = `あなたは${params.userName || "ユーザー"}のメール返信アシスタントです。
 ユーザーに代わって自然で適切なメール返信文を作成します。
@@ -42,7 +48,7 @@ export async function generateReply(params: {
 - 「返信:」「以下が返信です:」などの前置き・メタコメントは一切不要です。
 - 出力は受信者にそのまま送信できる完成形である必要があります。
 
-${TONE_INSTRUCTIONS[params.tone]}`;
+${TONE_INSTRUCTIONS[params.tone]}${learningSection}`;
 
   const userMessage = `以下のメールへの返信を作成してください。
 
