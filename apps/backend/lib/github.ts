@@ -23,14 +23,25 @@ interface GitHubTree {
   truncated: boolean;
 }
 
-// AI 返信に不要なフォルダ（自動生成データ・ゴミ箱）
-const EXCLUDE_PREFIXES = ["Notion/", ".trash/", ".obsidian/"];
+/**
+ * 学習データとして使うファイルの範囲:
+ *   「Cmail/」フォルダ配下の .md ファイルのみ。
+ *
+ * - Cmail/my-preferences.md  … 返信スタイル・好み（最優先）
+ * - Cmail/contacts/*.md      … 連絡先メモ（自動管理）
+ * - Cmail/labels/*.md        … ラベルごとのコンテキスト（自動管理）
+ * - Cmail/（任意）.md         … ユーザーが自由に追加したノート
+ *
+ * → Obsidian でこのフォルダに .md を置くだけで学習データに追加できる。
+ *   Notion/・Inbox/ などは一切読まない（プライバシー・サイズ対策）。
+ */
+const CMAIL_PREFIX = "Cmail/";
 
 export async function fetchObsidianNotes(): Promise<string> {
   if (!GITHUB_PAT || !GITHUB_OWNER || !GITHUB_REPO) return "";
 
   try {
-    // HEAD のツリー（再帰）を取得して .md ファイルだけ抽出
+    // HEAD のツリー（再帰）を取得して Cmail/ 配下の .md のみ抽出
     const treeRes = await fetch(
       `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/HEAD?recursive=1`,
       {
@@ -48,10 +59,7 @@ export async function fetchObsidianNotes(): Promise<string> {
     const tree: GitHubTree = await treeRes.json();
 
     const allMd = tree.tree.filter(
-      (f) =>
-        f.type === "blob" &&
-        f.path.endsWith(".md") &&
-        !EXCLUDE_PREFIXES.some((prefix) => f.path.startsWith(prefix))
+      (f) => f.type === "blob" && f.path.endsWith(".md") && f.path.startsWith(CMAIL_PREFIX)
     );
 
     // my-preferences.md を最優先、残りはその後に並べる
