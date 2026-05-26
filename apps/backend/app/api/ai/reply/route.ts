@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMobileJwt } from "@/lib/mobile-jwt";
 import { generateReply, MissingApiKeyError, type ReplyTone } from "@/lib/claude";
+import { fetchObsidianNotes } from "@/lib/github";
 
 export const runtime = "nodejs";
 // Anthropic への往復で時間がかかるので 60 秒まで許可（Vercel Hobby の上限）
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // GitHub 連携が設定されていれば Obsidian ノートを取得（失敗しても空文字で続行）
+    const learningData = await fetchObsidianNotes();
+
     const reply = await generateReply({
       apiKey: aiKey,
       emailFrom,
@@ -42,6 +46,7 @@ export async function POST(request: NextRequest) {
       tone: (tone ?? "business") as ReplyTone,
       hint,
       userName: payload.name,
+      learningData: learningData || undefined,
     });
     return NextResponse.json({ reply });
   } catch (err) {
