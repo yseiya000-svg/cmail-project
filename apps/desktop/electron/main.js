@@ -300,14 +300,34 @@ function startNext() {
   } else {
     // Prod: run the Next.js standalone server using Electron-as-Node.
     // electron-builder packs `.next/standalone` into resources/app via extraResources.
-    const serverScript = path.join(process.resourcesPath, "app", "server.js");
-    if (!fs.existsSync(serverScript)) {
-      const msg = `Next.js server.js が見つかりません: ${serverScript}\nインストールが破損している可能性があります。アプリを再インストールしてください。`;
+    //
+    // Next.js monorepo standalone output places server.js relative to the
+    // workspace root, so it may be at "app/server.js" (non-monorepo) or
+    // "app/apps/desktop/server.js" (monorepo with npm workspaces).
+    const appRoot = path.join(process.resourcesPath, "app");
+    const candidatePaths = [
+      appRoot,
+      path.join(appRoot, "apps", "desktop"),
+    ];
+    let serverScript = null;
+    let serverCwd = appRoot;
+    for (const dir of candidatePaths) {
+      const candidate = path.join(dir, "server.js");
+      if (fs.existsSync(candidate)) {
+        serverScript = candidate;
+        serverCwd = dir;
+        break;
+      }
+    }
+    if (!serverScript) {
+      const searched = candidatePaths.map((d) => path.join(d, "server.js")).join("\n  ");
+      const msg = `Next.js server.js が見つかりません。以下を確認しました:\n  ${searched}\nインストールが破損している可能性があります。アプリを再インストールしてください。`;
       logToFile("[startNext] " + msg);
       throw new Error(msg);
     }
+    logToFile(`[startNext] server.js found at: ${serverScript}`);
     nextProcess = spawn(process.execPath, [serverScript], {
-      cwd: path.join(process.resourcesPath, "app"),
+      cwd: serverCwd,
       env: {
         ...process.env,
         PORT: String(PORT),

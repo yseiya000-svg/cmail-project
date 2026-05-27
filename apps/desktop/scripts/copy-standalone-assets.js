@@ -29,16 +29,33 @@ if (!fs.existsSync(STANDALONE)) {
   process.exit(0);
 }
 
-copyDir(path.join(ROOT, "public"), path.join(STANDALONE, "public"));
-copyDir(path.join(ROOT, ".next", "static"), path.join(STANDALONE, ".next", "static"));
+// In a monorepo (npm workspaces) Next.js standalone places server.js at
+// apps/desktop/server.js instead of the root.  public/ and .next/static/
+// must live next to server.js so Next.js can serve them at runtime.
+const rootServer = path.join(STANDALONE, "server.js");
+const nestedServer = path.join(STANDALONE, "apps", "desktop", "server.js");
+const serverDir = fs.existsSync(rootServer)
+  ? STANDALONE
+  : fs.existsSync(nestedServer)
+    ? path.join(STANDALONE, "apps", "desktop")
+    : STANDALONE;
+
+if (serverDir !== STANDALONE) {
+  console.log(`[copy-standalone-assets] monorepo standalone detected — server.js at apps/desktop/`);
+}
+
+copyDir(path.join(ROOT, "public"), path.join(serverDir, "public"));
+copyDir(path.join(ROOT, ".next", "static"), path.join(serverDir, ".next", "static"));
 
 // Belt-and-suspenders: never ship the dev cmail-settings.json (it contains
 // the developer's local Obsidian path / preferences). The production app
 // reads/writes settings from %APPDATA%\Cmail\ instead.
-const strayDevSettings = path.join(STANDALONE, "cmail-settings.json");
-if (fs.existsSync(strayDevSettings)) {
-  fs.rmSync(strayDevSettings, { force: true });
-  console.log("[copy-standalone-assets] stripped dev cmail-settings.json from standalone.");
+for (const dir of [STANDALONE, serverDir]) {
+  const strayDevSettings = path.join(dir, "cmail-settings.json");
+  if (fs.existsSync(strayDevSettings)) {
+    fs.rmSync(strayDevSettings, { force: true });
+    console.log(`[copy-standalone-assets] stripped dev cmail-settings.json from ${dir}.`);
+  }
 }
 
 console.log("[copy-standalone-assets] public/ and .next/static copied into standalone tree.");
