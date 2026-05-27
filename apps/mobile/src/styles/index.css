@@ -4,8 +4,16 @@
   padding: 0;
 }
 
+/*
+ * テーマは <html data-theme="light|dark|system"> で明示制御。
+ *  - "light" / "dark": その色を強制
+ *  - "system" (default): OS の prefers-color-scheme に追従
+ *
+ * 設定画面で切り替えると即時反映される。
+ */
+
+/* Defaults: light theme tokens (使われる場面: data-theme="light" or system+OS=light) */
 :root {
-  /* Brand colors aligned with the Windows desktop app (violet-600 / gray-50). */
   --color-bg: #f9fafb;
   --color-surface: #ffffff;
   --color-primary: #7c3aed;
@@ -17,8 +25,24 @@
   --safe-bottom: env(safe-area-inset-bottom);
 }
 
+/* Dark mode tokens, applied either when user picks "dark" or when OS prefers dark and theme is "system". */
+:root[data-theme="dark"],
+:root[data-theme="system"] {
+  /* fall-through; only used as a selector hook for the media query below when system */
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0f0f13;
+  --color-surface: #1c1c1e;
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-text: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-border: #2d2d33;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme="system"] {
     --color-bg: #0f0f13;
     --color-surface: #1c1c1e;
     --color-primary: #8b5cf6;

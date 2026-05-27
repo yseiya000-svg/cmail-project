@@ -1,0 +1,673 @@
+export type Language = "ja" | "en" | "ko" | "es" | "zh";
+
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  ja: "日本語",
+  en: "English",
+  ko: "한국어",
+  es: "Español",
+  zh: "中文",
+};
+
+type Dict = Record<string, string>;
+
+const translations: Record<Language, Dict> = {
+  ja: {
+    // Sidebar
+    compose: "作成",
+    inbox: "受信トレイ",
+    starred: "スター付き",
+    sent: "送信済み",
+    draft: "下書き",
+    allMail: "全てのメール",
+    trash: "ゴミ箱",
+    spam: "迷惑メール",
+    labels: "ラベル",
+    account: "アカウント",
+    addAccount: "アカウントの追加",
+    settings: "設定",
+
+    // Mail page
+    searchPlaceholder: "メールを検索",
+    countDisplayed: "件表示中",
+    refresh: "更新",
+    loading: "読み込み中...",
+    sessionExpired: "セッションの有効期限が切れました。ログアウトして再ログインしてください。",
+    mailFetchError: "メール取得エラー",
+    networkError: "通信エラー",
+
+    // Settings page
+    back: "戻る",
+    language: "言語",
+    theme: "テーマ",
+    themeLight: "ライト",
+    themeDark: "ダーク",
+    themeSystem: "システム",
+    obsidianIntegration: "Obsidian連携",
+    obsidianDescription:
+      "学習データ（reply-patterns.json）と設定ファイルを保存するフォルダのパスを指定します。空欄にするとObsidian連携がOFFになります。",
+    obsidianFolderPath: "Cmailフォルダのパス",
+    obsidianPlaceholder: "例: E:\\iCloudDrive\\iCloud~md~obsidian\\Main Brain\\Cmail",
+    saveSettings: "設定を保存",
+    saving: "保存中...",
+    saved: "保存しました",
+    saveFailed: "保存に失敗しました",
+    logout: "ログアウト",
+    unsavedWarning: "設定の変更が保存されていません。本当に戻りますか？",
+
+    // AI API key
+    aiApiKey: "AI APIキー",
+    aiApiKeyDescription:
+      "現在はClaude (Anthropic) のキーが使用されます。APIキーはこのデバイスにのみ保存され、サーバーには送信されません。",
+    aiApiKeyPlaceholder: "sk-ant-...",
+    aiApiKeyHelp: "キーを変更しない場合は空欄のままにしてください",
+    show: "表示",
+    hide: "隠す",
+    test: "テスト",
+    testing: "テスト中...",
+    testOk: "接続OK",
+    testFailed: "接続失敗",
+    getKey: "Anthropic Console を開く",
+
+    // Generic
+    saveBtn: "保存",
+    collapse: "折りたたむ",
+    expand: "展開",
+
+    // LabelNoteHeader
+    labelNote: "ラベルノート",
+    excludeFromLearning: "学習対象から除外",
+    labelNoteExcluded: "このラベル付きのメールは学習データから除外されます",
+    labelNoteInjected: "保存内容は返信生成時に AI に注入されます",
+    labelNotePlaceholder: "このラベルが付いたメールへの返信生成時に AI に渡される文脈をここに書きます。例：プロジェクトの概要、相手との関係性、注意事項など。",
+
+    // ContactPanel
+    aiUpdateContact: "AI で情報を更新",
+    analyzing: "分析中...",
+    saveManualEdit: "手動編集を保存",
+    firstSeenLabel: "初回:",
+    lastSeenLabel: "最終:",
+    nExchanges: "やり取り {n} 回",
+
+    // Sidebar — label management
+    createLabelTitle: "ラベルを作成",
+    labelNamePlaceholder: "ラベル名",
+    renameLabel: "名前を変更",
+    deleteLabel: "削除",
+    newLabelNamePlaceholder: "新しいラベル名",
+    deleteLabelConfirm: "「{n}」を削除しますか？",
+
+    // Mail page — multi-select action bar
+    selectAll: "すべて",
+    selectUnread: "未読のみ",
+    selectNone: "選択を解除",
+    itemsSelected: "件選択中",
+    markRead: "既読",
+    markUnread: "未読",
+    deleteBtn: "削除",
+    noLabels: "ラベルがありません",
+    deleteConfirm: "{n}件のメールをゴミ箱に移動しますか？",
+
+    // EmailView
+    selectEmail: "メールを選択してください",
+    contactsBtn: "連絡先",
+    contactNoteTitle: "この相手の連絡先ノート",
+    labelBtn: "ラベル",
+    addLabelTitle: "ラベルを追加",
+    replyBtn: "返信",
+    loadImages: "画像を読み込む",
+    imageTrackingWarning: "このメールには画像が含まれています。プライバシー保護のため初期状態では読み込みません。",
+    removeLabelAria: "ラベルを外す",
+
+    // Settings — preferences regen
+    regeneratePreferences: "返信スタイルを再生成",
+    regenerating: "再生成中...",
+    preferencesRegenConfirm: "my-preferences.md を AI で再生成します。よろしいですか？",
+    preferencesRegenSuccess: "再生成しました。Obsidian で my-preferences.md を確認してください。",
+    preferencesRegenLabel: "学習データの再生成",
+    preferencesRegenDesc: "これまでの送受信履歴を AI が分析し、my-preferences.md を最新の傾向に合わせて書き直します。AI 料金がかかる操作のため手動実行です。",
+    currentKey: "現在のキー:",
+    obsidianFolderHint: "フォルダを選択すると、その直下に contacts/ / labels/ / my-preferences.md / reply-patterns.json が自動作成されます。",
+    learningFiles: "学習ファイル",
+    learningFilesDesc: "Cmail/ 直下の .md ファイルから、AI 返信の参考にするものを選びます。チェックを外したファイルは学習に使われません。",
+    loadFileList: "ファイル一覧を再読込",
+    selectAllFiles: "全選択",
+    deselectAllFiles: "全解除",
+    noFilesFound: "Cmail/ フォルダに .md ファイルが見つかりませんでした。",
+    filesSelectedCount: "選択中: {n}",
+    folderBrowseDesktopOnly: "フォルダ選択はデスクトップアプリ版で利用できます。",
+
+    // Onboarding modal
+    onboardingTitle: "Cmail へようこそ",
+    onboardingBody:
+      "メール返信のAI生成を使うには、Claude (Anthropic) のAPIキーが必要です。\nキーは Anthropic Console から取得でき、利用料金はあなた自身のアカウントに請求されます。",
+    onboardingPlaceholder: "sk-ant-... をここに貼り付け",
+    saveAndStart: "保存して開始",
+    later: "あとで設定",
+    onboardingError: "保存できませんでした",
+  },
+  en: {
+    compose: "Compose",
+    inbox: "Inbox",
+    starred: "Starred",
+    sent: "Sent",
+    draft: "Drafts",
+    allMail: "All Mail",
+    trash: "Trash",
+    spam: "Spam",
+    labels: "Labels",
+    account: "Account",
+    addAccount: "Add account",
+    settings: "Settings",
+
+    searchPlaceholder: "Search mail",
+    countDisplayed: " shown",
+    refresh: "Refresh",
+    loading: "Loading...",
+    sessionExpired: "Your session has expired. Please log out and log in again.",
+    mailFetchError: "Failed to fetch mail",
+    networkError: "Network error",
+
+    back: "Back",
+    language: "Language",
+    theme: "Theme",
+    themeLight: "Light",
+    themeDark: "Dark",
+    themeSystem: "System",
+    obsidianIntegration: "Obsidian Integration",
+    obsidianDescription:
+      "Path to the folder where learning data (reply-patterns.json) and settings will be stored. Leave empty to disable Obsidian integration.",
+    obsidianFolderPath: "Cmail folder path",
+    obsidianPlaceholder: "e.g. E:\\iCloudDrive\\iCloud~md~obsidian\\Main Brain\\Cmail",
+    saveSettings: "Save settings",
+    saving: "Saving...",
+    saved: "Saved",
+    saveFailed: "Failed to save",
+    logout: "Log out",
+    unsavedWarning: "You have unsaved changes. Are you sure you want to go back?",
+
+    aiApiKey: "AI API key",
+    aiApiKeyDescription:
+      "Claude (Anthropic) is currently used. The key is stored only on this device and is never sent to a remote server.",
+    aiApiKeyPlaceholder: "sk-ant-...",
+    aiApiKeyHelp: "Leave empty to keep the existing key",
+    show: "Show",
+    hide: "Hide",
+    test: "Test",
+    testing: "Testing...",
+    testOk: "Connection OK",
+    testFailed: "Connection failed",
+    getKey: "Open Anthropic Console",
+
+    // Generic
+    saveBtn: "Save",
+    collapse: "Collapse",
+    expand: "Expand",
+
+    // LabelNoteHeader
+    labelNote: "Label note",
+    excludeFromLearning: "Exclude from learning",
+    labelNoteExcluded: "Emails with this label are excluded from learning data",
+    labelNoteInjected: "Saved content is injected into AI when generating replies",
+    labelNotePlaceholder: "Write context to pass to AI when generating replies for emails with this label. E.g. project overview, relationship with contact, notes.",
+
+    // ContactPanel
+    aiUpdateContact: "Update with AI",
+    analyzing: "Analyzing...",
+    saveManualEdit: "Save manual edit",
+    firstSeenLabel: "First seen:",
+    lastSeenLabel: "Last seen:",
+    nExchanges: "{n} exchanges",
+
+    // Sidebar — label management
+    createLabelTitle: "Create label",
+    labelNamePlaceholder: "Label name",
+    renameLabel: "Rename",
+    deleteLabel: "Delete",
+    newLabelNamePlaceholder: "New label name",
+    deleteLabelConfirm: "Delete \"{n}\"?",
+
+    // Mail page — multi-select action bar
+    selectAll: "All",
+    selectUnread: "Unread only",
+    selectNone: "Deselect all",
+    itemsSelected: " selected",
+    markRead: "Mark read",
+    markUnread: "Mark unread",
+    deleteBtn: "Delete",
+    noLabels: "No labels",
+    deleteConfirm: "Move {n} email(s) to trash?",
+
+    // EmailView
+    selectEmail: "Select an email",
+    contactsBtn: "Contacts",
+    contactNoteTitle: "Contact note",
+    labelBtn: "Label",
+    addLabelTitle: "Add label",
+    replyBtn: "Reply",
+    loadImages: "Load images",
+    imageTrackingWarning: "This email contains images. They are not loaded by default for privacy protection.",
+    removeLabelAria: "Remove label",
+
+    // Settings — preferences regen
+    regeneratePreferences: "Regenerate reply style",
+    regenerating: "Regenerating...",
+    preferencesRegenConfirm: "Regenerate my-preferences.md with AI. Are you sure?",
+    preferencesRegenSuccess: "Regenerated successfully. Check my-preferences.md in Obsidian.",
+    preferencesRegenLabel: "Learning data regeneration",
+    preferencesRegenDesc: "AI analyzes your send/receive history and rewrites my-preferences.md to match the latest trends. Manual only because it incurs API costs.",
+    currentKey: "Current key:",
+    obsidianFolderHint: "Selecting a folder will auto-create contacts/ / labels/ / my-preferences.md / reply-patterns.json inside it.",
+    learningFiles: "Learning files",
+    learningFilesDesc: "Pick which .md files directly under Cmail/ the AI should consider when drafting replies. Unchecked files are skipped.",
+    loadFileList: "Reload file list",
+    selectAllFiles: "Select all",
+    deselectAllFiles: "Deselect all",
+    noFilesFound: "No .md files found in the Cmail/ folder.",
+    filesSelectedCount: "Selected: {n}",
+    folderBrowseDesktopOnly: "Folder browsing is only available in the desktop app.",
+
+    onboardingTitle: "Welcome to Cmail",
+    onboardingBody:
+      "To use AI-generated email replies, a Claude (Anthropic) API key is required.\nYou can get one from the Anthropic Console, and usage is billed to your own account.",
+    onboardingPlaceholder: "Paste sk-ant-... here",
+    saveAndStart: "Save and start",
+    later: "Set up later",
+    onboardingError: "Could not save",
+  },
+  ko: {
+    compose: "작성",
+    inbox: "받은편지함",
+    starred: "별표편지함",
+    sent: "보낸편지함",
+    draft: "임시보관함",
+    allMail: "모든 메일",
+    trash: "휴지통",
+    spam: "스팸",
+    labels: "라벨",
+    account: "계정",
+    addAccount: "계정 추가",
+    settings: "설정",
+
+    searchPlaceholder: "메일 검색",
+    countDisplayed: "개 표시 중",
+    refresh: "새로고침",
+    loading: "로드 중...",
+    sessionExpired: "세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.",
+    mailFetchError: "메일을 가져오지 못했습니다",
+    networkError: "통신 오류",
+
+    back: "뒤로",
+    language: "언어",
+    theme: "테마",
+    themeLight: "라이트",
+    themeDark: "다크",
+    themeSystem: "시스템",
+    obsidianIntegration: "Obsidian 연동",
+    obsidianDescription:
+      "학습 데이터(reply-patterns.json)와 설정 파일을 저장할 폴더 경로를 지정합니다. 비워두면 Obsidian 연동이 꺼집니다.",
+    obsidianFolderPath: "Cmail 폴더 경로",
+    obsidianPlaceholder: "예: E:\\iCloudDrive\\iCloud~md~obsidian\\Main Brain\\Cmail",
+    saveSettings: "설정 저장",
+    saving: "저장 중...",
+    saved: "저장됨",
+    saveFailed: "저장 실패",
+    logout: "로그아웃",
+    unsavedWarning: "저장하지 않은 변경 사항이 있습니다. 정말로 돌아가시겠습니까?",
+
+    aiApiKey: "AI API 키",
+    aiApiKeyDescription:
+      "현재 Claude (Anthropic) 키가 사용됩니다. 키는 이 기기에만 저장되며 원격 서버로 전송되지 않습니다.",
+    aiApiKeyPlaceholder: "sk-ant-...",
+    aiApiKeyHelp: "키를 변경하지 않으려면 비워 두세요",
+    show: "표시",
+    hide: "숨기기",
+    test: "테스트",
+    testing: "테스트 중...",
+    testOk: "연결 OK",
+    testFailed: "연결 실패",
+    getKey: "Anthropic Console 열기",
+
+    // Generic
+    saveBtn: "저장",
+    collapse: "접기",
+    expand: "펼치기",
+
+    // LabelNoteHeader
+    labelNote: "레이블 노트",
+    excludeFromLearning: "학습에서 제외",
+    labelNoteExcluded: "이 레이블의 메일은 학습 데이터에서 제외됩니다",
+    labelNoteInjected: "저장된 내용은 AI 답장 생성 시 주입됩니다",
+    labelNotePlaceholder: "이 레이블이 붙은 메일에 답장할 때 AI에 전달할 문맥을 작성하세요.",
+
+    // ContactPanel
+    aiUpdateContact: "AI로 정보 업데이트",
+    analyzing: "분석 중...",
+    saveManualEdit: "수동 편집 저장",
+    firstSeenLabel: "첫 번째:",
+    lastSeenLabel: "마지막:",
+    nExchanges: "{n}회 교환",
+
+    // Sidebar
+    createLabelTitle: "레이블 만들기",
+    labelNamePlaceholder: "레이블 이름",
+    renameLabel: "이름 변경",
+    deleteLabel: "삭제",
+    newLabelNamePlaceholder: "새 레이블 이름",
+    deleteLabelConfirm: "「{n}」을(를) 삭제하시겠습니까?",
+
+    // Mail page
+    selectAll: "전체",
+    selectUnread: "읽지 않은 것만",
+    selectNone: "선택 해제",
+    itemsSelected: "개 선택됨",
+    markRead: "읽음",
+    markUnread: "읽지 않음",
+    deleteBtn: "삭제",
+    noLabels: "레이블 없음",
+    deleteConfirm: "{n}개 메일을 휴지통으로 이동하시겠습니까?",
+
+    // EmailView
+    selectEmail: "메일을 선택하세요",
+    contactsBtn: "연락처",
+    contactNoteTitle: "연락처 노트",
+    labelBtn: "레이블",
+    addLabelTitle: "레이블 추가",
+    replyBtn: "답장",
+    loadImages: "이미지 불러오기",
+    imageTrackingWarning: "이 메일에는 이미지가 포함되어 있습니다. 개인정보 보호를 위해 기본적으로 불러오지 않습니다.",
+    removeLabelAria: "레이블 제거",
+
+    // Settings
+    regeneratePreferences: "답장 스타일 재생성",
+    regenerating: "재생성 중...",
+    preferencesRegenConfirm: "AI로 my-preferences.md를 재생성합니다. 계속하시겠습니까?",
+    preferencesRegenSuccess: "재생성되었습니다. Obsidian에서 my-preferences.md를 확인하세요.",
+    preferencesRegenLabel: "학습 데이터 재생성",
+    preferencesRegenDesc: "AI가 기존 송수신 기록을 분석하여 my-preferences.md를 최신 경향에 맞게 다시 작성합니다. API 비용이 발생하므로 수동 실행입니다.",
+    currentKey: "현재 키:",
+    obsidianFolderHint: "폴더를 선택하면 contacts/ / labels/ / my-preferences.md / reply-patterns.json이 자동 생성됩니다.",
+    learningFiles: "학습 파일",
+    learningFilesDesc: "Cmail/ 바로 아래에 있는 .md 파일 중 AI 답장 생성에 참고할 항목을 선택합니다. 체크 해제된 파일은 사용되지 않습니다.",
+    loadFileList: "파일 목록 새로고침",
+    selectAllFiles: "전체 선택",
+    deselectAllFiles: "전체 해제",
+    noFilesFound: "Cmail/ 폴더에 .md 파일이 없습니다.",
+    filesSelectedCount: "선택됨: {n}",
+    folderBrowseDesktopOnly: "폴더 선택은 데스크톱 앱에서만 가능합니다.",
+
+    onboardingTitle: "Cmail에 오신 것을 환영합니다",
+    onboardingBody:
+      "AI 메일 답장을 사용하려면 Claude (Anthropic) API 키가 필요합니다.\n키는 Anthropic Console에서 받을 수 있으며 사용 요금은 본인 계정으로 청구됩니다.",
+    onboardingPlaceholder: "sk-ant-... 를 여기에 붙여넣기",
+    saveAndStart: "저장하고 시작",
+    later: "나중에 설정",
+    onboardingError: "저장할 수 없습니다",
+  },
+  es: {
+    compose: "Redactar",
+    inbox: "Bandeja de entrada",
+    starred: "Destacados",
+    sent: "Enviados",
+    draft: "Borradores",
+    allMail: "Todos los correos",
+    trash: "Papelera",
+    spam: "Spam",
+    labels: "Etiquetas",
+    account: "Cuenta",
+    addAccount: "Añadir cuenta",
+    settings: "Ajustes",
+
+    searchPlaceholder: "Buscar correo",
+    countDisplayed: " mostrados",
+    refresh: "Actualizar",
+    loading: "Cargando...",
+    sessionExpired: "Tu sesión ha expirado. Por favor cierra sesión e inicia sesión de nuevo.",
+    mailFetchError: "Error al obtener correos",
+    networkError: "Error de red",
+
+    back: "Atrás",
+    language: "Idioma",
+    theme: "Tema",
+    themeLight: "Claro",
+    themeDark: "Oscuro",
+    themeSystem: "Sistema",
+    obsidianIntegration: "Integración con Obsidian",
+    obsidianDescription:
+      "Ruta a la carpeta donde se guardarán los datos de aprendizaje (reply-patterns.json) y los ajustes. Déjalo vacío para desactivar Obsidian.",
+    obsidianFolderPath: "Ruta de la carpeta Cmail",
+    obsidianPlaceholder: "Ej: E:\\iCloudDrive\\iCloud~md~obsidian\\Main Brain\\Cmail",
+    saveSettings: "Guardar ajustes",
+    saving: "Guardando...",
+    saved: "Guardado",
+    saveFailed: "Error al guardar",
+    logout: "Cerrar sesión",
+    unsavedWarning: "Tienes cambios sin guardar. ¿Seguro que quieres volver?",
+
+    aiApiKey: "Clave API de IA",
+    aiApiKeyDescription:
+      "Actualmente se usa la clave de Claude (Anthropic). La clave se guarda solo en este dispositivo y nunca se envía a un servidor remoto.",
+    aiApiKeyPlaceholder: "sk-ant-...",
+    aiApiKeyHelp: "Deja vacío para mantener la clave existente",
+    show: "Mostrar",
+    hide: "Ocultar",
+    test: "Probar",
+    testing: "Probando...",
+    testOk: "Conexión OK",
+    testFailed: "Conexión fallida",
+    getKey: "Abrir Anthropic Console",
+
+    // Generic
+    saveBtn: "Guardar",
+    collapse: "Contraer",
+    expand: "Expandir",
+
+    // LabelNoteHeader
+    labelNote: "Nota de etiqueta",
+    excludeFromLearning: "Excluir del aprendizaje",
+    labelNoteExcluded: "Los correos con esta etiqueta se excluyen de los datos de aprendizaje",
+    labelNoteInjected: "El contenido guardado se inyecta en la IA al generar respuestas",
+    labelNotePlaceholder: "Escribe el contexto a pasar a la IA al generar respuestas para correos con esta etiqueta.",
+
+    // ContactPanel
+    aiUpdateContact: "Actualizar con IA",
+    analyzing: "Analizando...",
+    saveManualEdit: "Guardar edición manual",
+    firstSeenLabel: "Primera vez:",
+    lastSeenLabel: "Última vez:",
+    nExchanges: "{n} intercambios",
+
+    // Sidebar
+    createLabelTitle: "Crear etiqueta",
+    labelNamePlaceholder: "Nombre de etiqueta",
+    renameLabel: "Renombrar",
+    deleteLabel: "Eliminar",
+    newLabelNamePlaceholder: "Nuevo nombre de etiqueta",
+    deleteLabelConfirm: "¿Eliminar \"{n}\"?",
+
+    // Mail page
+    selectAll: "Todo",
+    selectUnread: "Solo no leídos",
+    selectNone: "Deseleccionar todo",
+    itemsSelected: " seleccionados",
+    markRead: "Marcar leído",
+    markUnread: "Marcar no leído",
+    deleteBtn: "Eliminar",
+    noLabels: "No hay etiquetas",
+    deleteConfirm: "¿Mover {n} correo(s) a la papelera?",
+
+    // EmailView
+    selectEmail: "Selecciona un correo",
+    contactsBtn: "Contactos",
+    contactNoteTitle: "Nota de contacto",
+    labelBtn: "Etiqueta",
+    addLabelTitle: "Añadir etiqueta",
+    replyBtn: "Responder",
+    loadImages: "Cargar imágenes",
+    imageTrackingWarning: "Este correo contiene imágenes. No se cargan por defecto para proteger tu privacidad.",
+    removeLabelAria: "Quitar etiqueta",
+
+    // Settings
+    regeneratePreferences: "Regenerar estilo de respuesta",
+    regenerating: "Regenerando...",
+    preferencesRegenConfirm: "¿Regenerar my-preferences.md con IA?",
+    preferencesRegenSuccess: "Regenerado correctamente. Comprueba my-preferences.md en Obsidian.",
+    preferencesRegenLabel: "Regeneración de datos de aprendizaje",
+    preferencesRegenDesc: "La IA analiza tu historial de envíos y reescribe my-preferences.md según las tendencias actuales. Ejecución manual porque tiene coste de API.",
+    currentKey: "Clave actual:",
+    obsidianFolderHint: "Al seleccionar una carpeta se crearán automáticamente contacts/ / labels/ / my-preferences.md / reply-patterns.json.",
+    learningFiles: "Archivos de aprendizaje",
+    learningFilesDesc: "Elige qué archivos .md directamente bajo Cmail/ usará la IA al redactar respuestas. Los desmarcados se omiten.",
+    loadFileList: "Recargar lista de archivos",
+    selectAllFiles: "Seleccionar todo",
+    deselectAllFiles: "Deseleccionar todo",
+    noFilesFound: "No se encontraron archivos .md en la carpeta Cmail/.",
+    filesSelectedCount: "Seleccionados: {n}",
+    folderBrowseDesktopOnly: "La selección de carpeta solo está disponible en la app de escritorio.",
+
+    onboardingTitle: "Bienvenido a Cmail",
+    onboardingBody:
+      "Para usar las respuestas generadas por IA, se requiere una clave API de Claude (Anthropic).\nPuedes obtener una desde Anthropic Console y el uso se facturará a tu propia cuenta.",
+    onboardingPlaceholder: "Pega sk-ant-... aquí",
+    saveAndStart: "Guardar y empezar",
+    later: "Configurar después",
+    onboardingError: "No se pudo guardar",
+  },
+  zh: {
+    compose: "写邮件",
+    inbox: "收件箱",
+    starred: "已加星标",
+    sent: "已发送",
+    draft: "草稿",
+    allMail: "所有邮件",
+    trash: "垃圾桶",
+    spam: "垃圾邮件",
+    labels: "标签",
+    account: "账户",
+    addAccount: "添加账户",
+    settings: "设置",
+
+    searchPlaceholder: "搜索邮件",
+    countDisplayed: "封显示中",
+    refresh: "刷新",
+    loading: "加载中...",
+    sessionExpired: "会话已过期。请注销后重新登录。",
+    mailFetchError: "获取邮件失败",
+    networkError: "网络错误",
+
+    back: "返回",
+    language: "语言",
+    theme: "主题",
+    themeLight: "浅色",
+    themeDark: "深色",
+    themeSystem: "系统",
+    obsidianIntegration: "Obsidian 集成",
+    obsidianDescription:
+      "用于保存学习数据 (reply-patterns.json) 和设置文件的文件夹路径。留空则禁用 Obsidian 集成。",
+    obsidianFolderPath: "Cmail 文件夹路径",
+    obsidianPlaceholder: "例如: E:\\iCloudDrive\\iCloud~md~obsidian\\Main Brain\\Cmail",
+    saveSettings: "保存设置",
+    saving: "保存中...",
+    saved: "已保存",
+    saveFailed: "保存失败",
+    logout: "退出登录",
+    unsavedWarning: "您有未保存的更改。确定要返回吗？",
+
+    aiApiKey: "AI API 密钥",
+    aiApiKeyDescription:
+      "当前使用 Claude (Anthropic) 密钥。密钥仅保存在此设备上，不会发送到远程服务器。",
+    aiApiKeyPlaceholder: "sk-ant-...",
+    aiApiKeyHelp: "若不更改密钥请留空",
+    show: "显示",
+    hide: "隐藏",
+    test: "测试",
+    testing: "测试中...",
+    testOk: "连接正常",
+    testFailed: "连接失败",
+    getKey: "打开 Anthropic Console",
+
+    // Generic
+    saveBtn: "保存",
+    collapse: "收起",
+    expand: "展开",
+
+    // LabelNoteHeader
+    labelNote: "标签备注",
+    excludeFromLearning: "从学习中排除",
+    labelNoteExcluded: "含此标签的邮件将从学习数据中排除",
+    labelNoteInjected: "保存内容将在生成回复时注入 AI",
+    labelNotePlaceholder: "在此填写生成含此标签邮件回复时传给 AI 的上下文。",
+
+    // ContactPanel
+    aiUpdateContact: "用 AI 更新信息",
+    analyzing: "分析中...",
+    saveManualEdit: "保存手动编辑",
+    firstSeenLabel: "首次:",
+    lastSeenLabel: "最近:",
+    nExchanges: "{n} 次往来",
+
+    // Sidebar
+    createLabelTitle: "创建标签",
+    labelNamePlaceholder: "标签名称",
+    renameLabel: "重命名",
+    deleteLabel: "删除",
+    newLabelNamePlaceholder: "新标签名称",
+    deleteLabelConfirm: "确定删除「{n}」吗？",
+
+    // Mail page
+    selectAll: "全部",
+    selectUnread: "仅未读",
+    selectNone: "取消选择",
+    itemsSelected: " 封已选",
+    markRead: "标为已读",
+    markUnread: "标为未读",
+    deleteBtn: "删除",
+    noLabels: "无标签",
+    deleteConfirm: "将 {n} 封邮件移至垃圾桶？",
+
+    // EmailView
+    selectEmail: "请选择一封邮件",
+    contactsBtn: "联系人",
+    contactNoteTitle: "联系人备注",
+    labelBtn: "标签",
+    addLabelTitle: "添加标签",
+    replyBtn: "回复",
+    loadImages: "加载图片",
+    imageTrackingWarning: "此邮件包含图片，默认不加载以保护隐私。",
+    removeLabelAria: "移除标签",
+
+    // Settings
+    regeneratePreferences: "重新生成回复风格",
+    regenerating: "重新生成中...",
+    preferencesRegenConfirm: "用 AI 重新生成 my-preferences.md，确定吗？",
+    preferencesRegenSuccess: "重新生成成功。请在 Obsidian 中查看 my-preferences.md。",
+    preferencesRegenLabel: "学习数据重新生成",
+    preferencesRegenDesc: "AI 分析您的收发件历史并重写 my-preferences.md 以匹配最新趋势。因涉及 API 费用，需手动执行。",
+    currentKey: "当前密钥:",
+    obsidianFolderHint: "选择文件夹后，将自动创建 contacts/ / labels/ / my-preferences.md / reply-patterns.json。",
+    learningFiles: "学习文件",
+    learningFilesDesc: "选择 Cmail/ 根目录下哪些 .md 文件用于 AI 回复参考，未勾选的文件不会被使用。",
+    loadFileList: "重新加载文件列表",
+    selectAllFiles: "全选",
+    deselectAllFiles: "取消全选",
+    noFilesFound: "Cmail/ 文件夹中未找到 .md 文件。",
+    filesSelectedCount: "已选: {n}",
+    folderBrowseDesktopOnly: "文件夹选择仅在桌面应用中可用。",
+
+    onboardingTitle: "欢迎使用 Cmail",
+    onboardingBody:
+      "要使用 AI 邮件回复，需要 Claude (Anthropic) API 密钥。\n可从 Anthropic Console 获取，使用费用将计入您自己的账户。",
+    onboardingPlaceholder: "在此处粘贴 sk-ant-...",
+    saveAndStart: "保存并开始",
+    later: "稍后设置",
+    onboardingError: "无法保存",
+  },
+};
+
+export function t(key: string, lang: Language): string {
+  return translations[lang]?.[key] ?? translations.ja[key] ?? key;
+}
+
+/** Replace `{n}` in the translation with the given value. */
+export function tf(key: string, lang: Language, n: number | string): string {
+  return t(key, lang).replace("{n}", String(n));
+}

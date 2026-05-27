@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import { fetchMessages, type Email } from "../lib/api";
 
 function formatDate(dateStr: string): string {
@@ -84,6 +85,7 @@ function EmailRow({ email }: { email: Email }) {
 
 export default function Inbox() {
   const { token } = useAuth();
+  const { t } = useSettings();
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,10 +122,10 @@ export default function Inbox() {
         padding: "1rem 1.25rem 0.75rem",
         borderBottom: "1px solid var(--color-border)",
       }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>受信トレイ</h1>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>{t("inbox")}</h1>
         <Link
           to="/settings"
-          aria-label="設定"
+          aria-label={t("settings")}
           style={{
             background: "none",
             color: "var(--color-primary)",
@@ -132,7 +134,7 @@ export default function Inbox() {
             padding: "0.25rem 0.5rem",
           }}
         >
-          設定
+          {t("settings")}
         </Link>
       </header>
 

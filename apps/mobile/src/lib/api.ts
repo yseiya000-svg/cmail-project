@@ -124,3 +124,29 @@ export async function debugObsidian(token: string): Promise<unknown> {
   const res = await authedFetch(token, `${BACKEND_URL}/api/debug/obsidian`);
   return res.json();
 }
+
+export type AiTestResult = { ok: boolean; error?: string };
+
+export async function testAiKey(token: string, aiKey: string): Promise<AiTestResult> {
+  try {
+    const res = await authedFetch(token, `${BACKEND_URL}/api/claude/test`, {
+      method: "POST",
+      headers: { "X-Cmail-AI-Key": aiKey },
+    });
+    return res.json();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export type GithubStatus = {
+  configured: boolean;
+  owner: string | null;
+  repo: string | null;
+  treeOk: boolean;
+};
+
+export async function fetchGithubStatus(token: string): Promise<GithubStatus> {
+  const res = await authedFetch(token, `${BACKEND_URL}/api/github/status`);
+  return res.json();
+}
