@@ -2,11 +2,11 @@
  * 外部依存なしで Cmail の PWA アイコンを生成するスクリプト。
  * Node.js 組み込みの zlib のみ使用。
  *
- * デザイン: #7C3AED (violet-600) の角丸正方形 + 白い "C" 文字（弧）
- * デスクトップアプリのブランドカラーに統一。
+ * デザイン: #7C3AED (violet-600) のフルブリード正方形 + 白い "C" 文字（弧）
  *
- * NOTE: 通常はデスクトップロゴ (apps/desktop/public/icons/cmail-256.png) を直接コピーする。
- * このスクリプトはコピー元が無い場合のフォールバックとして残してある。
+ * iOS の apple-touch-icon は「キャンバス全面に色を塗り、外側の角丸は OS が自動で付ける」のが正解。
+ * 透明な余白を含むと iOS ホーム画面（特にダークモード）で黒い淵として見えるため、
+ * パディング・角丸を一切付けず縁いっぱいまで紫で塗りつぶす。
  */
 const zlib = require("zlib");
 const fs = require("fs");
@@ -60,40 +60,26 @@ function generateIcon(size) {
   const rgba = new Uint8Array(size * size * 4);
   const cx = size / 2;
   const cy = size / 2;
-  const pad = size * 0.08;
-  const cornerR = size * 0.22;
-  const hw = size / 2 - pad; // 角丸矩形の半幅（コーナー除く）
 
-  // ── 背景: 角丸正方形 (#007AFF) ──
+  // ── 背景: 縁いっぱいの紫 (#7C3AED) フルブリード ──
+  // 透明な余白を作らない（iOS の黒い淵を防ぐため）。
+  // 外側の角丸は iOS / Android ランチャー側が自動でクリップしてくれる。
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const dx = Math.abs(x - cx);
-      const dy = Math.abs(y - cy);
-      const qx = Math.max(dx - (hw - cornerR), 0);
-      const qy = Math.max(dy - (hw - cornerR), 0);
-      const sdf = Math.sqrt(qx * qx + qy * qy) - cornerR;
-
-      let alpha = 0;
-      if (sdf <= 0) {
-        alpha = 255;
-      } else if (sdf < 1.5) {
-        alpha = Math.round(255 * (1 - sdf / 1.5)); // アンチエイリアス
-      }
-      if (alpha > 0) {
-        const i = (y * size + x) * 4;
-        rgba[i]     = 0x7c; // R (violet-600)
-        rgba[i + 1] = 0x3a; // G
-        rgba[i + 2] = 0xed; // B
-        rgba[i + 3] = alpha;
-      }
+      const i = (y * size + x) * 4;
+      rgba[i]     = 0x7c;
+      rgba[i + 1] = 0x3a;
+      rgba[i + 2] = 0xed;
+      rgba[i + 3] = 0xff;
     }
   }
 
   // ── 白い "C" 文字（弧） ──
+  // maskable セーフゾーン (内側 80%) に収まるよう一回り大きく描画。
   const arcCx = cx + size * 0.04; // 中心より少し右オフセット
   const arcCy = cy;
-  const outerR = size * 0.28;
-  const innerR = size * 0.16;
+  const outerR = size * 0.34;
+  const innerR = size * 0.20;
   const strokeWidth = outerR - innerR;
   const openingDeg = 62; // C の開口部（右側、±62度）
 
