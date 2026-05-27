@@ -97,7 +97,7 @@ try {
 // Friends with other dev tools (Vercel CLI, Docker, etc.) holding 3000 used to
 // hit "Next.js server start timeout" — this loop fixes that silently.
 let PORT = 3000;
-let ORIGIN = `http://localhost:${PORT}`;
+let ORIGIN = `http://127.0.0.1:${PORT}`;
 const isDev = !app.isPackaged;
 
 /**
@@ -340,7 +340,16 @@ function startNext() {
         NEXT_TELEMETRY_DISABLED: "1",
       },
       windowsHide: true,
-      stdio: ["ignore", "ignore", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    nextProcess.stdout?.on("data", (chunk) => {
+      const line = chunk.toString().trim();
+      if (line) logToFile("[server stdout] " + line);
+    });
+    nextProcess.stderr?.on("data", (chunk) => {
+      const line = chunk.toString().trim();
+      if (line) logToFile("[server stderr] " + line);
     });
   }
 
@@ -417,7 +426,7 @@ function installSecurityPolicy() {
       const u = new URL(details.url);
       fromOurOrigin =
         (u.protocol === "http:" || u.protocol === "https:") &&
-        u.hostname === "localhost" &&
+        (u.hostname === "localhost" || u.hostname === "127.0.0.1") &&
         (u.port === String(PORT) || u.port === "");
     } catch {}
 
@@ -436,7 +445,7 @@ function installSecurityPolicy() {
       "img-src 'self' data: blob: http: https:",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      `connect-src 'self' http://localhost:${PORT} ws://localhost:${PORT} https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com`,
+      `connect-src 'self' http://127.0.0.1:${PORT} ws://127.0.0.1:${PORT} https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com`,
       "frame-src 'self' data: https://accounts.google.com",
       "font-src 'self' data:",
       "object-src 'none'",
@@ -747,7 +756,7 @@ if (!gotSingleInstanceLock) {
       // configureRuntimeEnv / installSecurityPolicy / startNext はすべて PORT に依存するので順序が大事。
       try {
         PORT = await pickFreePort(3000, 3010);
-        ORIGIN = `http://localhost:${PORT}`;
+        ORIGIN = `http://127.0.0.1:${PORT}`;
         if (PORT !== 3000) {
           writeStartupLog(`[startup] port 3000 was busy, falling back to ${PORT}`);
         }
