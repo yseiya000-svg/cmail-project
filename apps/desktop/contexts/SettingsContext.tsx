@@ -14,6 +14,8 @@ export interface CmailSettings {
   aiApiKey: string;
   /** True if a non-empty key is stored on the server. */
   aiApiKeySet: boolean;
+  /** Cmail/ 直下の .md のうち学習に使うもののホワイトリスト。空 = 全選択。 */
+  obsidianSelectedFiles: string[];
 }
 
 const DEFAULTS: CmailSettings = {
@@ -22,6 +24,7 @@ const DEFAULTS: CmailSettings = {
   theme: "light",
   aiApiKey: "",
   aiApiKeySet: false,
+  obsidianSelectedFiles: [],
 };
 
 interface SettingsContextValue {
@@ -115,6 +118,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         obsidianCmailPath: merged.obsidianCmailPath,
         language: merged.language,
         theme: merged.theme,
+        obsidianSelectedFiles: merged.obsidianSelectedFiles ?? [],
       };
       if (patch && typeof patch.aiApiKey === "string") {
         payload.aiApiKey = patch.aiApiKey;

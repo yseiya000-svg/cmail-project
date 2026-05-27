@@ -24,6 +24,12 @@ export interface CmailSettings {
   theme: "light" | "dark" | "system";
   /** Claude (Anthropic) API key — BYOK. Never exposed to the client in plaintext. */
   aiApiKey: string;
+  /**
+   * 学習データとして使う Cmail/ 直下の .md ファイルのホワイトリスト。
+   * undefined / 空配列なら「全ファイル使う」（後方互換）。
+   * 設定画面のチェックボックスで操作。
+   */
+  obsidianSelectedFiles?: string[];
 }
 
 /** Map a BCP-47-ish locale string (e.g. "en-US", "ja", "zh-Hant") onto one
@@ -46,6 +52,7 @@ const DEFAULT_SETTINGS: CmailSettings = {
   language: detectDefaultLanguage(),
   theme: "light",
   aiApiKey: "",
+  obsidianSelectedFiles: [],
 };
 
 /** One-time migration: if a legacy settings file exists in cwd, copy it into userData. */
@@ -126,5 +133,6 @@ export function maskSettings(s: CmailSettings): Omit<CmailSettings, "aiApiKey"> 
     theme: s.theme,
     aiApiKey: masked,
     aiApiKeySet: key.length > 0,
+    obsidianSelectedFiles: s.obsidianSelectedFiles ?? [],
   };
 }

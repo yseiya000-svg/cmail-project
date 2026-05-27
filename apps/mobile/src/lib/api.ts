@@ -88,6 +88,11 @@ export type AiReplyParams = {
   emailBody: string;
   tone: ReplyTone;
   hint?: string;
+  /**
+   * 学習データとして使う Obsidian ファイルパスのホワイトリスト。
+   * undefined / 空配列なら Cmail/ 配下の全ファイルが使われる（後方互換）。
+   */
+  selectedObsidianFiles?: string[];
 };
 
 export async function generateAiReply(
@@ -105,6 +110,14 @@ export async function generateAiReply(
   });
   const data = await res.json();
   return data.reply;
+}
+
+export type ObsidianFile = { path: string; sha: string };
+
+export async function listObsidianFiles(token: string): Promise<ObsidianFile[]> {
+  const res = await authedFetch(token, `${BACKEND_URL}/api/obsidian/files`);
+  const data = await res.json();
+  return data.files ?? [];
 }
 
 export async function debugObsidian(token: string): Promise<unknown> {

@@ -48,6 +48,32 @@ export async function POST(req: Request) {
     }
   }
 
+  if (body.obsidianSelectedFiles !== undefined) {
+    if (!Array.isArray(body.obsidianSelectedFiles)) {
+      return NextResponse.json(
+        { error: "obsidianSelectedFiles は配列で指定してください" },
+        { status: 400 }
+      );
+    }
+    if (body.obsidianSelectedFiles.some((p: unknown) => typeof p !== "string")) {
+      return NextResponse.json(
+        { error: "obsidianSelectedFiles の要素は文字列のみ許可されます" },
+        { status: 400 }
+      );
+    }
+    // パストラバーサル防止: "Cmail/foo.md" 形式のみ受け付ける
+    if (
+      body.obsidianSelectedFiles.some(
+        (p: string) => p.includes("..") || p.includes("\\") || !p.startsWith("Cmail/")
+      )
+    ) {
+      return NextResponse.json(
+        { error: "不正なファイルパスが含まれています" },
+        { status: 400 }
+      );
+    }
+  }
+
   if (body.aiApiKey !== undefined) {
     if (typeof body.aiApiKey !== "string") {
       return NextResponse.json({ error: "APIキーは文字列で指定してください" }, { status: 400 });

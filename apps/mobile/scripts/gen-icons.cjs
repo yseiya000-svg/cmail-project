@@ -2,7 +2,11 @@
  * 外部依存なしで Cmail の PWA アイコンを生成するスクリプト。
  * Node.js 組み込みの zlib のみ使用。
  *
- * デザイン: #007AFF の角丸正方形 + 白い "C" 文字（弧）
+ * デザイン: #7C3AED (violet-600) の角丸正方形 + 白い "C" 文字（弧）
+ * デスクトップアプリのブランドカラーに統一。
+ *
+ * NOTE: 通常はデスクトップロゴ (apps/desktop/public/icons/cmail-256.png) を直接コピーする。
+ * このスクリプトはコピー元が無い場合のフォールバックとして残してある。
  */
 const zlib = require("zlib");
 const fs = require("fs");
@@ -77,9 +81,9 @@ function generateIcon(size) {
       }
       if (alpha > 0) {
         const i = (y * size + x) * 4;
-        rgba[i]     = 0x00; // R
-        rgba[i + 1] = 0x7a; // G
-        rgba[i + 2] = 0xff; // B
+        rgba[i]     = 0x7c; // R (violet-600)
+        rgba[i + 1] = 0x3a; // G
+        rgba[i + 2] = 0xed; // B
         rgba[i + 3] = alpha;
       }
     }

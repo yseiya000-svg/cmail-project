@@ -2,58 +2,40 @@
 
 > Living document. Update at the end of every session so the next Claude can resume cleanly.
 
-Last updated: 2026-05-22
+Last updated: 2026-05-26 (session 2)
 
 ---
 
 ## 1. Current version state
 
-- **Desktop latest released on GitHub**: `v0.2.2` (auto-update live)
-- **Desktop v0.2.3**: cold-start perf changes are in `apps/desktop/electron/main.js` and committed on `feat/monorepo-mobile`. **Not yet released.** The release ritual changed — must `cd apps/desktop` first.
-- **Current branch**: `feat/monorepo-mobile` (pushed to GitHub, clean)
-- **`main` branch**: does NOT yet have the monorepo structure. Need to merge `feat/monorepo-mobile → main` before Vercel deployment works from `main`.
+- **Desktop latest released on GitHub**: `v0.2.4` (auto-update live)
+- **Current branch**: `main` (clean, pushed)
+- **Backend**: deployed on Vercel, linked to `main`, GitHub integration active
+- **Mobile**: PWA served by Vercel backend (`apps/backend`), accessible at Vercel URL
 
 ---
 
-## 2. Recently completed (most recent first)
+## 2. Recently completed (this session, most recent first)
 
-| Commit | Highlights |
+| Task | Status |
 |---|---|
-| `9193280` feat(backend) | Scaffold `apps/backend` with `/api/health` for Vercel |
-| `9a2ef10` chore | Add root `app:desktop` shortcut script |
-| `8a1b5b0` fix(desktop) | Fix launcher `.vbs`/`.bat` cwd after monorepo move |
-| `214e565` refactor | Convert to monorepo (`apps/desktop` + `packages/shared`) |
-| `9661f07` chore | Track all previously untracked source files |
-| v0.2.2 (on GitHub) | Label right-click rename/delete bug fix, lazy body load, SettingsProvider non-blocking, autoUpdater debounce |
+| Obsidian 学習ファイル選択 UI (両アプリ): Cmail/ 直下 .md をチェックボックスで選択 | Done — モバイル設定 / デスクトップ設定 / バックエンド `/api/obsidian/files` |
+| モバイル PWA を紫ブランドに統一: アイコン (cmail-256 流用) + theme-color + CSS変数 #7c3aed | Done |
+| デスクトップ起動エラー修正: ルートに `launch-cmail.vbs` / `.bat` のプロキシ作成 | Done — 旧ショートカット書換不要 |
+| Desktop v0.2.4 release (NSIS installer on GitHub Releases) | Done |
+| PWA icons for mobile (icon-192, icon-512, apple-touch-icon) | Done |
+| Unified Obsidian file selection: both mobile + desktop use `Cmail/` folder only | Done |
+| Security incident resolved: API key in `Inbox/` was exposed via GitHub, rotated | Done |
+| Obsidian GitHub integration (`apps/backend/lib/github.ts`) | Done |
+| Debug endpoint (`/api/debug/obsidian`) to verify GitHub connection | Done |
+| AI reply uses Obsidian notes as learning data (mobile backend) | Done |
+| P4–P10 (mobile skeleton → OAuth → inbox → compose → iCloud → AI reply → polish) | Done (prior session) |
 
 ---
 
 ## 3. In progress
 
-**P2 — Vercel deployment** (user is on Vercel UI, stopped before clicking Deploy)
-
-What the user needs to do:
-1. **Merge `feat/monorepo-mobile` into `main`** first (Vercel production branch = `main`)
-   ```powershell
-   git checkout main
-   git merge feat/monorepo-mobile
-   git push
-   git checkout feat/monorepo-mobile
-   ```
-2. On Vercel "New Project" page:
-   - Click **Edit** next to Root Directory → type `apps/backend` → Save
-   - Project Name can stay `cmail-project` or rename to `cmail-backend`
-   - Framework: Next.js (auto-detected, correct)
-3. Click **Deploy**
-4. After deploy, set env vars in Vercel Dashboard → Settings → Environment Variables:
-   - `GOOGLE_CLIENT_ID` — from Google Cloud Console (Web app OAuth client, NOT Desktop type)
-   - `GOOGLE_CLIENT_SECRET` — same
-   - `NEXTAUTH_SECRET` — run `openssl rand -base64 32` or use any strong random string
-   - `NEXTAUTH_URL` — the Vercel deployment URL (e.g. `https://cmail-backend.vercel.app`)
-   - `CMAIL_STORAGE_MODE` — literal: `stateless`
-5. Verify: `curl https://<your-vercel-url>/api/health` returns `{"ok":true,...}`
-
-**Before Vercel env vars work for auth:** user also needs a new Google Cloud Console OAuth client of type **"Web application"** (the existing one is type "Desktop app" and cannot issue tokens for a web server).
+Nothing actively in progress. All requested work is complete.
 
 ---
 
@@ -61,91 +43,119 @@ What the user needs to do:
 
 | Priority | Task |
 |---|---|
-| **P2 (immediate)** | Complete Vercel deployment (see "In progress" above) |
-| **P3** | Storage adapter layer — `LocalFsAdapter` vs `StatelessAdapter`, switch on `CMAIL_STORAGE_MODE` |
-| **P4** | `apps/mobile` skeleton — Capacitor v6 + Vite + React, `cmail://` URL scheme |
-| **P5** | Mobile OAuth — `cmail://auth/callback`, `/api/auth/mobile/*` endpoints, iOS Keychain |
-| **P6** | Inbox + EmailDetail views (mobile) |
-| **P7** | Compose + send (mobile) |
-| **P8** | iCloud Drive integration — custom Swift `CmailFilePlugin.swift`, UIDocumentPicker, security-scoped bookmarks |
-| **P9** | AI reply generation (mobile) |
-| **P10** | Polish + Xcode install to own iPhone |
-| Low | Desktop v0.2.3 release (cold-start perf) — run release ritual from `apps/desktop` |
-| Low | OpenAI / Gemini provider support (BYOK UI already says "今後対応予定") |
-| Low | Code-signing certificate (users hit SmartScreen) |
+| Low | npm audit — 18 vulnerabilities (6 moderate, 12 high) in root monorepo |
+| Low | Code-signing certificate for desktop (users see SmartScreen warning) |
+| Low | OpenAI / Gemini provider support (BYOK UI says "今後対応予定") |
+| Low | `apps/mobile` native Capacitor build for direct iPhone install via Xcode |
+| Low | Remove or lock down `/api/debug/obsidian` endpoint before sharing with others |
 
 ---
 
 ## 5. Key decisions made and WHY
 
-### iOS approach
-- **Capacitor v6** (not React Native, not Flutter) — reuses existing React/TypeScript UI with minimal changes.
-- **Vercel** for backend hosting — free tier, zero-ops, auto-deploys from GitHub.
-- **iCloud Drive** for Obsidian vault access on mobile — user already syncs vault to iCloud; avoids duplicating data.
-- **Xcode direct install** (no App Store) — personal use only, avoids $99/year Apple Developer fee and review process.
+### Obsidian learning data (this session)
+- **`Cmail/` folder only**: both desktop (`lib/obsidian.ts`) and mobile (`lib/github.ts`) now read only `.md` files under the `Cmail/` subfolder of the Obsidian vault. This prevents accidental inclusion of private notes (Notion exports, Inbox, etc.).
+- **`my-preferences.md` pinned first**: when building the learning-data string, `my-preferences.md` is always placed at the top so the AI sees user preferences before other notes.
+- **Silent fallback**: if GitHub API is down / PAT missing / repo empty, `fetchObsidianNotes()` returns `""` and AI reply generation continues without learning data.
+- **`Inbox/` gitignored on vault**: prevents any future credential files in Inbox from being pushed to GitHub.
 
-### Desktop (carried over)
-- **BYOK** — avoid Seiya being billed for users' API usage.
-- **GitHub Releases** — works for private repos via `GH_TOKEN`, electron-updater natively supports it.
-- **Next.js `output: "standalone"`** — bundles minimal Node so end users don't need Node installed.
-- **Learning data in Obsidian folder** — Seiya already uses Obsidian; portability beats a dedicated DB.
-- **Mail body lazy-loading** — 50-message full fetch was the single biggest startup bottleneck (2–3s).
+### Mobile (PWA, not native Capacitor — this session)
+- Decided to serve mobile as PWA from Vercel backend rather than building a native Capacitor .ipa. Avoids Xcode complexity for now. User can add to home screen from Safari.
+- If native install is needed later, `apps/mobile` Capacitor scaffold is present and can be connected to Xcode.
 
-### Explicitly rejected
-- App Store distribution — personal use, not worth the cost/overhead.
-- React Native / Flutter — would require rewriting all UI from scratch.
-- Supabase / PlanetScale as backend DB — stateless BYOK design means no user data server-side.
-- Email body machine translation — i18n covers UI strings only.
-- Auto-regenerate `my-preferences.md` — manual-only. Reason: AI cost control.
+### electron-builder path-with-spaces workaround (critical)
+- Project path `E:\Claude Projects\Cmail Project` contains spaces.
+- `npm run release` (inside `apps/desktop`) FAILS with ENOENT because `cross-spawn` in `builder-util` cannot spawn `app-builder.exe` via `child_process.spawn()` when the binary path contains spaces.
+- **Fix**: install `electron-builder` globally → `npm install -g electron-builder` → binary lands in `C:\Users\Seiya\AppData\Roaming\npm\` (no spaces).
+- **Release ritual**: run `electron-builder --win --publish always` directly from shell instead of `npm run release`.
 
 ---
 
 ## 6. Traps, gotchas, failed approaches
 
-### Monorepo / release
-- **Desktop release ritual changed**: must `cd apps/desktop` before `npm run release`. The old ritual ran from root — electron-builder and next build now must run from `apps/desktop/`.
-- **`electron/credentials.js` path changed**: old `.gitignore` had `electron/credentials.js` (root-relative). The moved path is `apps/desktop/electron/credentials.js`. Fixed with `**/electron/credentials.js` pattern. Never revert this.
-- **Credentials almost leaked**: during the monorepo move, `apps/desktop/electron/credentials.js` was briefly staged. Caught before push via `git reset --soft HEAD~1`. Always check `git status` before committing after file moves.
+### Desktop release (critical — updated this session)
+- **`npm run release` DOES NOT WORK** from the project directory due to spaces in path. Use the global `electron-builder` binary directly (see release ritual below).
+- **Electron version must be fixed** (e.g. `"33.4.11"`, NOT `"^33.0.0"`). electron-builder cannot determine the exact version to package if a semver range is specified. Current `apps/desktop/package.json` already has a fixed version.
+- **Always `Remove-Item -Recurse -Force .next`** before releasing. Stale build artifacts have shipped before.
+- **Never `npm version patch` AND manually tag** — electron-builder creates the git tag automatically.
 
-### Desktop (carried over)
-- **Global `document.addEventListener("mousedown", close)` closes popups before inner button `onClick` fires.** Always use ref-based outside-click: `if (ref.current && !ref.current.contains(e.target))`. See `Sidebar.tsx` account popup for the canonical example.
+### Obsidian / GitHub security
+- **`Inbox/` on Obsidian vault was NOT gitignored initially.** User had `Inbox/Keys 2.md` and `Inbox/Keys(1).md` containing a full Anthropic API key. These were fetched as learning data and sent to Claude. Key has since been revoked and rotated.
+- **Vault `.gitignore` now excludes**: `.obsidian/plugins/`, `.obsidian/workspace*.json`, `*.icloud`, `Inbox/`, `*Keys*.md`, `*keys*.md`, `*token*.md`, `*secret*.md`.
+- **Never remove `Inbox/` from vault `.gitignore`.** The Inbox folder is used for quick capture and often contains sensitive content.
+
+### GitHub PAT entry
+- When pasting PAT into Vercel env var, paste the token string only (`github_pat_...`). Do NOT include a "Token " prefix. The code adds `Bearer ` automatically.
+
+### General
+- **Global `document.addEventListener("mousedown", close)` closes popups before inner button `onClick` fires.** Always use ref-based outside-click.
 - **`EmailMessage.body` is optional** (lazy loading). Any code touching `.body` must fall back to `message.snippet || ""`.
 - **`process.cwd()` is read-only** on packaged NSIS installs. Always use `app.getPath("userData")` → `CMAIL_USER_DATA_DIR`.
-- **`electron-updater` only in packaged builds.** In dev, wrap in `try { ... } catch {}`.
-- **Always `Remove-Item -Recurse -Force .next`** before release. Stale content has shipped before.
-- **Always `npm version patch --no-git-tag-version`**. electron-builder creates the git tag — adding one manually causes collisions.
-- **Circular import `lib/settings.ts` ↔ `lib/obsidian.ts`** is solved by live bindings. Don't add top-level cross-calls.
-
-### Vercel
-- Backend `next.config.ts` must NOT have `output: "standalone"` — Vercel doesn't need it and it can cause issues.
-- Root Directory in Vercel must be `apps/backend`, not `./`.
-- The Google OAuth client for Vercel must be type **"Web application"** — the Desktop type cannot issue tokens for a hosted server.
+- **Backend `next.config.ts` must NOT have `output: "standalone"`** — Vercel doesn't need it.
+- **Google OAuth client for backend must be type "Web application"** — Desktop type cannot issue tokens for a hosted server.
 
 ---
 
-## 7. Release ritual (desktop, canonical)
+## 7. Release ritual (desktop, canonical — UPDATED)
 
 `GH_TOKEN` is already persisted in the user's Windows env vars.
 
 ```powershell
+# 1. Install global electron-builder ONCE (if not already done):
+#    npm install -g electron-builder
+
 $env:Path = "C:\Program Files\nodejs;" + $env:Path
 cd "E:\Claude Projects\Cmail Project\apps\desktop"
 
+# 2. Clean build
 Remove-Item -Recurse -Force .next
 
+# 3. Bump version (do NOT git tag manually — electron-builder does it)
 npm version patch --no-git-tag-version
 
-git add <changed files>
-git commit -m "<conventional commit message> (v0.2.X)"
+# 4. Build Next.js standalone + copy assets
+npm run build:app
+
+# 5. Commit + push
+git add apps/desktop/package.json
+git commit -m "chore: bump desktop to v0.2.X"
 git push
 
-npm run release
+# 6. Release via GLOBAL electron-builder (not npm run release — spaces-in-path bug)
+electron-builder --win --publish always
 ```
 
 ---
 
-## 8. Resume prompt for next session
+## 8. Vercel env vars reference
+
+These must be set in Vercel Dashboard → Settings → Environment Variables for the backend:
+
+| Variable | Value |
+|---|---|
+| `GOOGLE_CLIENT_ID` | Web app OAuth client ID (Google Cloud Console) |
+| `GOOGLE_CLIENT_SECRET` | Web app OAuth client secret |
+| `NEXTAUTH_SECRET` | Strong random string |
+| `NEXTAUTH_URL` | Vercel deployment URL (e.g. `https://cmail-backend.vercel.app`) |
+| `CMAIL_STORAGE_MODE` | `stateless` |
+| `GITHUB_PAT` | Fine-grained PAT, Contents:Read-only on obsidian-vault repo |
+| `GITHUB_OWNER` | `yseiya000-svg` |
+| `GITHUB_REPO` | `obsidian-vault` |
+
+---
+
+## 9. Obsidian learning data architecture
+
+- **Desktop**: reads local vault at `E:\iCloudDrive\iCloud~md~obsidian\Main Brain\` → filters `Cmail/*.md`
+- **Mobile**: backend reads from GitHub repo `yseiya000-svg/obsidian-vault` via PAT → filters `Cmail/*.md`
+- **Convention**: drop any `.md` file into the vault's `Cmail/` folder to include it as AI learning data
+- **`my-preferences.md`**: highest-priority file, always pinned first in the context
+- **Limits**: max 15 files, 600 chars/file, 4500 chars total
+
+---
+
+## 10. Resume prompt for next session
 
 Paste this at the start of the next session:
 
-> Cmail プロジェクトの作業を再開します。まず `HANDOVER.md` を読んで現状把握してください。iOSアプリ開発のフェーズ中です。現在 `feat/monorepo-mobile` ブランチにいて、`apps/backend` が Vercel にデプロイ待ちです（P2）。HANDOVER の "In progress" セクションにある手順を確認して、ユーザーが何をすべき状態か把握した上で次の指示を待ってください。
+> Cmail プロジェクトの作業を再開します。まず `HANDOVER.md` を読んで現状把握してください。デスクトップ v0.2.4 がリリース済みで、バックエンドは Vercel にデプロイ済み、モバイルは PWA として動作中です。GitHub 経由の Obsidian 連携も完成しています。現在 `main` ブランチです。`HANDOVER.md` の「Pending」セクションを確認し、ユーザーの次の指示を待ってください。

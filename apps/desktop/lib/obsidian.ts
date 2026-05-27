@@ -140,6 +140,88 @@ export function writeUserPreferences(content: string): void {
   fs.writeFileSync(preferencesFile, content, "utf-8");
 }
 
+// ---------------------------------------------------------------------------
+// Cmail/ 直下のユーザーノート（学習データ）
+// ---------------------------------------------------------------------------
+
+/**
+ * 制限値: AI コンテキスト爆発を防ぐ。モバイル側 (apps/backend/lib/github.ts) と揃える。
+ */
+const NOTE_MAX_FILES = 15;
+const NOTE_MAX_CHARS_PER_FILE = 600;
+const NOTE_MAX_TOTAL_CHARS = 4500;
+
+/**
+ * Cmail/ 直下にある .md ファイルの一覧を返す（contacts/ と labels/ サブフォルダは除外）。
+ * 設定画面のチェックボックスリストの元データになる。
+ */
+export function listCmailMdFiles(): { path: string; mtime: string }[] {
+  try {
+    const cmailDir = getCmailDir();
+    if (!cmailDir || !fs.existsSync(cmailDir)) return [];
+    return fs
+      .readdirSync(cmailDir, { withFileTypes: true })
+      .filter((d) => d.isFile() && d.name.endsWith(".md"))
+      .map((d) => {
+        const full = path.join(cmailDir, d.name);
+        let mtime = "";
+        try {
+          mtime = fs.statSync(full).mtime.toISOString();
+        } catch {
+          // best-effort
+        }
+        // モバイル側と相対パスの体裁を揃える: "Cmail/..."
+        return { path: `Cmail/${d.name}`, mtime };
+      });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 選択されたファイル群を読み、AI 返信用の学習データ文字列に組み立てる。
+ *
+ * @param selectedRelPaths  "Cmail/foo.md" のような相対パスの配列。
+ *                          undefined / 空配列なら全ての .md を使う（後方互換）。
+ *                          my-preferences.md は readUserPreferences() 側で別途扱うため、
+ *                          この関数の戻り値からは除外する（重複防止）。
+ */
+export function readSelectedCmailNotes(selectedRelPaths?: string[]): string {
+  try {
+    const cmailDir = getCmailDir();
+    if (!cmailDir) return "";
+    const all = listCmailMdFiles();
+    if (all.length === 0) return "";
+
+    const filtered =
+      selectedRelPaths && selectedRelPaths.length > 0
+        ? all.filter((f) => selectedRelPaths.includes(f.path))
+        : all;
+
+    // my-preferences.md は claude.ts 側で readUserPreferences() として注入済 → ここでは除外
+    const eligible = filtered.filter((f) => !f.path.endsWith(PREFERENCES_FILE));
+    if (eligible.length === 0) return "";
+
+    const parts: string[] = [];
+    let total = 0;
+    for (const f of eligible.slice(0, NOTE_MAX_FILES)) {
+      if (total >= NOTE_MAX_TOTAL_CHARS) break;
+      try {
+        const full = path.join(cmailDir, f.path.replace(/^Cmail\//, ""));
+        const raw = fs.readFileSync(full, "utf-8").slice(0, NOTE_MAX_CHARS_PER_FILE);
+        parts.push(`### ${f.path}\n${raw}`);
+        total += raw.length;
+      } catch {
+        // skip read errors
+      }
+    }
+
+    return parts.join("\n\n");
+  } catch {
+    return "";
+  }
+}
+
 export function getSimilarPatterns(
   emailFrom: string,
   tone: string,

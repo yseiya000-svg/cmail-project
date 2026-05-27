@@ -56,7 +56,7 @@ function PreferencesRegenSection() {
 export default function SettingsPage() {
   const { status } = useSession();
   const router = useRouter();
-  const { settings, hasFetched, setLocal, save, t } = useSettings();
+  const { settings, hasFetched, setLocal, save, t, tf } = useSettings();
 
   // 編集用ドラフト。aiApiKey はマスク値ではなく「ユーザーが新たに入力した値」を保持する。
   // 空 = 「変更しない」。
@@ -69,6 +69,11 @@ export default function SettingsPage() {
   const [baseline, setBaseline] = useState(settings);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
+
+  // Obsidian 学習ファイル一覧（API から取得）
+  const [obsidianFiles, setObsidianFiles] = useState<{ path: string; mtime: string }[] | null>(null);
+  const [obsidianFilesError, setObsidianFilesError] = useState("");
+  const [obsidianFilesLoading, setObsidianFilesLoading] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
@@ -83,13 +88,68 @@ export default function SettingsPage() {
   }, [hasFetched]);
 
   const isDirty = useMemo(() => {
+    const a = (draft.obsidianSelectedFiles ?? []).join("|");
+    const b = (baseline.obsidianSelectedFiles ?? []).join("|");
     return (
       draft.language !== baseline.language ||
       draft.theme !== baseline.theme ||
       draft.obsidianCmailPath !== baseline.obsidianCmailPath ||
+      a !== b ||
       aiKeyDraft.length > 0
     );
   }, [draft, baseline, aiKeyDraft]);
+
+  // 設定画面マウント時に Cmail/ フォルダの .md 一覧を取得
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFiles() {
+      setObsidianFilesLoading(true);
+      setObsidianFilesError("");
+      try {
+        const res = await fetch("/api/obsidian/files");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setObsidianFiles(data.files ?? []);
+      } catch (err: any) {
+        if (cancelled) return;
+        setObsidianFilesError(err?.message || "取得に失敗しました");
+      } finally {
+        if (!cancelled) setObsidianFilesLoading(false);
+      }
+    }
+    if (hasFetched) loadFiles();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasFetched, draft.obsidianCmailPath]);
+
+  function toggleObsidianFile(p: string) {
+    const cur = draft.obsidianSelectedFiles ?? [];
+    const next = cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p];
+    updateDraft({ obsidianSelectedFiles: next });
+  }
+  function selectAllObsidianFiles() {
+    if (!obsidianFiles) return;
+    updateDraft({ obsidianSelectedFiles: obsidianFiles.map((f) => f.path) });
+  }
+  function deselectAllObsidianFiles() {
+    updateDraft({ obsidianSelectedFiles: [] });
+  }
+  async function reloadObsidianFiles() {
+    setObsidianFilesLoading(true);
+    setObsidianFilesError("");
+    try {
+      const res = await fetch("/api/obsidian/files");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setObsidianFiles(data.files ?? []);
+    } catch (err: any) {
+      setObsidianFilesError(err?.message || "取得に失敗しました");
+    } finally {
+      setObsidianFilesLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!isDirty) return;
@@ -116,6 +176,7 @@ export default function SettingsPage() {
       obsidianCmailPath: draft.obsidianCmailPath,
       language: draft.language,
       theme: draft.theme,
+      obsidianSelectedFiles: draft.obsidianSelectedFiles ?? [],
     };
     if (aiKeyDraft.length > 0) {
       payload.aiApiKey = aiKeyDraft.trim();
@@ -348,6 +409,76 @@ export default function SettingsPage() {
                 </svg>
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* 学習ファイル選択 (Obsidian Cmail/ 直下の .md チェックボックス) */}
+        <section>
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">{t("learningFiles")}</h2>
+          <p className="text-xs text-gray-400 mb-3">{t("learningFilesDesc")}</p>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            {obsidianFilesError && (
+              <div className="text-xs text-red-500 mb-2">{obsidianFilesError}</div>
+            )}
+
+            {obsidianFilesLoading && (
+              <div className="text-xs text-gray-400 py-2">{t("loading")}</div>
+            )}
+
+            {!obsidianFilesLoading && obsidianFiles && obsidianFiles.length === 0 && (
+              <div className="text-xs text-gray-400 py-2">{t("noFilesFound")}</div>
+            )}
+
+            {obsidianFiles && obsidianFiles.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={selectAllObsidianFiles}
+                    className="text-xs px-2 py-1 rounded border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors"
+                  >
+                    {t("selectAllFiles")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deselectAllObsidianFiles}
+                    className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                  >
+                    {t("deselectAllFiles")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={reloadObsidianFiles}
+                    className="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600 ml-auto"
+                  >
+                    {t("loadFileList")}
+                  </button>
+                </div>
+                <ul className="max-h-72 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg">
+                  {obsidianFiles.map((f) => {
+                    const checked = (draft.obsidianSelectedFiles ?? []).includes(f.path);
+                    return (
+                      <li key={f.path}>
+                        <label className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-violet-50/40 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleObsidianFile(f.path)}
+                            className="accent-violet-600 w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-700 font-mono break-all">
+                            {f.path.replace(/^Cmail\//, "")}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-[11px] text-gray-400 mt-2">
+                  {tf("filesSelectedCount", (draft.obsidianSelectedFiles ?? []).length)} / {obsidianFiles.length}
+                </p>
+              </>
+            )}
           </div>
         </section>
 

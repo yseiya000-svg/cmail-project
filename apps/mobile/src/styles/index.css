@@ -5,24 +5,27 @@
 }
 
 :root {
-  --color-bg: #ffffff;
-  --color-surface: #f2f2f7;
-  --color-primary: #007aff;
-  --color-text: #000000;
-  --color-text-secondary: #6c6c70;
-  --color-border: #c6c6c8;
+  /* Brand colors aligned with the Windows desktop app (violet-600 / gray-50). */
+  --color-bg: #f9fafb;
+  --color-surface: #ffffff;
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-text: #1f2937;
+  --color-text-secondary: #6b7280;
+  --color-border: #e5e7eb;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #000000;
+    --color-bg: #0f0f13;
     --color-surface: #1c1c1e;
-    --color-primary: #0a84ff;
-    --color-text: #ffffff;
-    --color-text-secondary: #98989d;
-    --color-border: #38383a;
+    --color-primary: #8b5cf6;
+    --color-primary-hover: #7c3aed;
+    --color-text: #f3f4f6;
+    --color-text-secondary: #9ca3af;
+    --color-border: #2d2d33;
   }
 }
 

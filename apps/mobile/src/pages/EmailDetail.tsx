@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchMessage, generateAiReply, type Email, type ReplyTone } from "../lib/api";
+import { getObsidianFilesForRequest } from "../lib/obsidianFiles";
 import { getAiKey } from "../lib/aiKey";
 
 const TONE_LABELS: Record<ReplyTone, string> = {
@@ -117,6 +118,7 @@ export default function EmailDetail() {
         emailBody: email.body || email.snippet || "",
         tone: aiTone,
         hint: aiHint.trim() || undefined,
+        selectedObsidianFiles: getObsidianFilesForRequest(),
       });
       // Compose に受け渡し
       sessionStorage.setItem(AI_BODY_SESSION_KEY, reply);

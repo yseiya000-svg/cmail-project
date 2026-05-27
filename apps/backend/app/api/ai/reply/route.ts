@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { emailFrom, emailSubject, emailBody, tone, hint } = await request.json();
+  const { emailFrom, emailSubject, emailBody, tone, hint, selectedObsidianFiles } =
+    await request.json();
 
   if (!emailFrom || !emailBody) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -36,7 +37,10 @@ export async function POST(request: NextRequest) {
 
   try {
     // GitHub 連携が設定されていれば Obsidian ノートを取得（失敗しても空文字で続行）
-    const learningData = await fetchObsidianNotes();
+    // selectedObsidianFiles が渡されていればそれだけに絞り込む（未指定なら全部）
+    const learningData = await fetchObsidianNotes(
+      Array.isArray(selectedObsidianFiles) ? selectedObsidianFiles : undefined
+    );
 
     const reply = await generateReply({
       apiKey: aiKey,

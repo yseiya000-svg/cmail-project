@@ -8,6 +8,7 @@ import {
   writeContact,
   readReplyPatterns,
   getLabelNotesByIds,
+  readSelectedCmailNotes,
 } from "./obsidian";
 import { getSettings } from "./settings";
 import type { ReplyTone, ContactNote, LabelNote } from "@/types";
@@ -67,6 +68,7 @@ export async function generateReply(params: {
 
   const userProfile = readUserProfile();
   const userPreferences = readUserPreferences();
+  const userNotes = readSelectedCmailNotes(getSettings().obsidianSelectedFiles);
   const similarPatterns = getSimilarPatterns(emailFrom, tone, 5);
   const contactContext = buildContactContext(emailFrom);
   const labelNotes = labelIds && allLabels ? getLabelNotesByIds(labelIds, allLabels) : [];
@@ -91,6 +93,10 @@ export async function generateReply(params: {
     ? `\n## ユーザーの返信スタイル・好み（最優先で反映すること）\n${userPreferences}`
     : "";
 
+  const notesContext = userNotes
+    ? `\n## ユーザーの参考ノート（Obsidian Cmail/）\n以下は参考文脈です。直接引用せず、判断材料として扱ってください。\n${userNotes}`
+    : "";
+
   const systemPrompt = `あなたは山崎 Seiya のメール返信アシスタントです。
 ユーザーに代わって自然で適切なメール返信文を作成します。
 
@@ -102,6 +108,7 @@ export async function generateReply(params: {
 
 ${TONE_INSTRUCTIONS[tone]}
 ${preferencesContext}
+${notesContext}
 ${profileContext}
 ${contactContext}
 ${labelContext}
@@ -157,6 +164,7 @@ export async function generateCompose(params: {
 
   const userProfile = readUserProfile();
   const userPreferences = readUserPreferences();
+  const userNotes = readSelectedCmailNotes(getSettings().obsidianSelectedFiles);
   const contactContext = buildContactContext(to);
   const labelNotes = labelIds && allLabels ? getLabelNotesByIds(labelIds, allLabels) : [];
   const labelContext = buildLabelContext(labelNotes);
@@ -167,6 +175,10 @@ export async function generateCompose(params: {
 
   const preferencesContext = userPreferences
     ? `\n## ユーザーの文章スタイル・好み（最優先で反映すること）\n${userPreferences}`
+    : "";
+
+  const notesContext = userNotes
+    ? `\n## ユーザーの参考ノート（Obsidian Cmail/）\n以下は参考文脈です。直接引用せず、判断材料として扱ってください。\n${userNotes}`
     : "";
 
   const systemPrompt = `あなたは山崎 Seiya のメール作成アシスタントです。
@@ -180,6 +192,7 @@ export async function generateCompose(params: {
 
 ${TONE_INSTRUCTIONS[tone]}
 ${preferencesContext}
+${notesContext}
 ${profileContext}
 ${contactContext}
 ${labelContext}`;
