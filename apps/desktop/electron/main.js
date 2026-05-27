@@ -326,6 +326,16 @@ function startNext() {
       throw new Error(msg);
     }
     logToFile(`[startNext] server.js found at: ${serverScript}`);
+    // NODE_PATH must include the standalone root's node_modules so that
+    // server.js (nested at apps/desktop/ in the monorepo layout) can
+    // require('next') and other bundled packages.  Node.js walks __dirname
+    // upward for node_modules, but Electron's module loader may stop before
+    // reaching resources/app/node_modules when the file is two levels deep.
+    const standaloneNodeModules = path.join(appRoot, "node_modules");
+    const nodePath = process.env.NODE_PATH
+      ? `${standaloneNodeModules}${path.delimiter}${process.env.NODE_PATH}`
+      : standaloneNodeModules;
+
     nextProcess = spawn(process.execPath, [serverScript], {
       cwd: serverCwd,
       env: {
@@ -334,6 +344,7 @@ function startNext() {
         HOSTNAME: "127.0.0.1",
         ELECTRON_RUN_AS_NODE: "1",
         NODE_ENV: "production",
+        NODE_PATH: nodePath,
         // Skip Next.js' phone-home telemetry — saves a network probe on every
         // cold start (300-800ms on slow / metered connections). This is the
         // single largest post-install / post-update startup win.
