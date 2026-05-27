@@ -4,7 +4,82 @@ const { spawn } = require("child_process");
 const http = require("http");
 const net = require("net");
 const fs = require("fs");
+const os = require("os");
 const crypto = require("crypto");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 早期クラッシュロガー (app.ready より前のクラッシュも記録する)
+// ─────────────────────────────────────────────────────────────────────────────
+// 友達 PC で「アプリが開かない (エラー画面も出ない)」現象が出た場合、
+// app.whenReady() より前のクラッシュ (require 失敗 / シングルインスタンスロック
+// 失敗 / configureRuntimeEnv 内例外 など) は何の痕跡も残さない。
+// ここで uncaughtException / unhandledRejection を最早期にフックして、
+// クラッシュログを user-writable パスに書く。
+//
+// app.getPath("userData") が使えない (= app オブジェクトがまだ初期化途中) 場合に
+// 備え、LOCALAPPDATA/Cmail にフォールバックする。
+function getEarlyLogDir() {
+  // 1. Electron が既に userData パスを持っていれば優先
+  try {
+    if (app && typeof app.getPath === "function") {
+      const p = app.getPath("userData");
+      if (p) return p;
+    }
+  } catch {
+    // fall through
+  }
+  // 2. Windows: %LOCALAPPDATA%\Cmail
+  if (process.platform === "win32" && process.env.LOCALAPPDATA) {
+    return path.join(process.env.LOCALAPPDATA, "Cmail");
+  }
+  // 3. 最後の砦: os.tmpdir()
+  return path.join(os.tmpdir(), "Cmail");
+}
+
+function writeStartupLog(line) {
+  try {
+    const dir = getEarlyLogDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "cmail-error.log");
+    const stamp = new Date().toISOString();
+    fs.appendFileSync(file, `[${stamp}] ${line}\n`, "utf-8");
+  } catch {
+    // 書けなければ諦める (本当に書けない状況なら問題はもっと深刻)
+  }
+}
+
+process.on("uncaughtException", (err) => {
+  writeStartupLog("[uncaughtException] " + (err?.stack || err?.message || String(err)));
+  // ダイアログを試みる (electron が ready していれば)
+  try {
+    if (app && app.isReady && app.isReady()) {
+      dialog.showErrorBox(
+        "Cmail - 致命的エラー",
+        (err?.message || String(err)) +
+          "\n\nログ: " +
+          path.join(getEarlyLogDir(), "cmail-error.log")
+      );
+    }
+  } catch {
+    // ignore
+  }
+});
+
+process.on("unhandledRejection", (reason) => {
+  writeStartupLog(
+    "[unhandledRejection] " + (reason?.stack || reason?.message || String(reason))
+  );
+});
+
+writeStartupLog(
+  `[boot] starting; version=${(() => {
+    try {
+      return app.getVersion();
+    } catch {
+      return "(unknown)";
+    }
+  })()} platform=${process.platform} arch=${process.arch} pid=${process.pid}`
+);
 
 // electron-updater is only available in packaged builds (when it's actually
 // shipped as a dependency). Wrap require() so dev mode without the package
@@ -13,8 +88,9 @@ let autoUpdater = null;
 try {
   // eslint-disable-next-line global-require
   ({ autoUpdater } = require("electron-updater"));
-} catch {
+} catch (err) {
   autoUpdater = null;
+  writeStartupLog("[boot] electron-updater not available: " + (err?.message || err));
 }
 
 // Port: starts at 3000 but auto-picks a free one in [3000, 3010] if occupied.
@@ -109,10 +185,18 @@ let mainWindow = null;
  * processes (Next.js) inherit them.
  */
 function configureRuntimeEnv() {
-  const userDataDir = app.getPath("userData");
+  let userDataDir;
+  try {
+    userDataDir = app.getPath("userData");
+  } catch (err) {
+    writeStartupLog("[configureRuntimeEnv] app.getPath('userData') failed: " + (err?.message || err));
+    throw err;
+  }
   try {
     fs.mkdirSync(userDataDir, { recursive: true });
-  } catch {}
+  } catch (err) {
+    writeStartupLog("[configureRuntimeEnv] mkdir userData failed: " + (err?.message || err));
+  }
   process.env.CMAIL_USER_DATA_DIR = userDataDir;
   process.env.CMAIL_APP_DIR = app.getAppPath();
 
@@ -136,7 +220,8 @@ function configureRuntimeEnv() {
     if (creds.GOOGLE_CLIENT_SECRET && !process.env.GOOGLE_CLIENT_SECRET) {
       process.env.GOOGLE_CLIENT_SECRET = creds.GOOGLE_CLIENT_SECRET;
     }
-  } catch {
+  } catch (err) {
+    writeStartupLog("[configureRuntimeEnv] credentials.js not found: " + (err?.message || err));
     if (!isDev) {
       console.error(
         "[cmail] electron/credentials.js not found in packaged build — Google sign-in will fail."
@@ -612,9 +697,16 @@ function setupAutoUpdater() {
 // window instead of starting a second copy that would fail to bind port 3000.
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
+  // 友達 PC の「アプリが開かない」現象の主犯候補:
+  // 過去のクラッシュでロックが残った / アンチウイルスが旧プロセスを終了しないまま新プロセスを spawn など。
+  // 何が起きたか痕跡を残してから quit する。
+  writeStartupLog(
+    "[singleInstanceLock] failed to acquire — another Cmail process owns the lock. Quitting."
+  );
   app.quit();
 } else {
   app.on("second-instance", () => {
+    writeStartupLog("[second-instance] another launch attempt; focusing main window");
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
@@ -622,34 +714,97 @@ if (!gotSingleInstanceLock) {
     }
   });
 
-  app.whenReady().then(async () => {
-    if (process.platform === "win32") {
-      app.setAppUserModelId("com.cmail.app");
-    }
+  app
+    .whenReady()
+    .then(async () => {
+      writeStartupLog("[whenReady] app ready, entering startup sequence");
 
-    // PORT を先に確定させる: 3000 が他アプリに占有されていたら 3001..3010 から選ぶ。
-    // configureRuntimeEnv / installSecurityPolicy / startNext はすべて PORT に依存するので順序が大事。
-    try {
-      PORT = await pickFreePort(3000, 3010);
-      ORIGIN = `http://localhost:${PORT}`;
-      if (PORT !== 3000) {
-        logToFile(`[startup] port 3000 was busy, falling back to ${PORT}`);
+      if (process.platform === "win32") {
+        app.setAppUserModelId("com.cmail.app");
       }
-    } catch (err) {
-      logToFile("[pickFreePort] " + (err?.message || String(err)));
-      // PORT 取得に失敗してもデフォルトで続行 (createWindow 側でエラー表示)
-    }
 
-    configureRuntimeEnv();
-    installSecurityPolicy();
-    startNext();
-    await createWindow();
-    setupAutoUpdater();
+      // PORT を先に確定させる: 3000 が他アプリに占有されていたら 3001..3010 から選ぶ。
+      // configureRuntimeEnv / installSecurityPolicy / startNext はすべて PORT に依存するので順序が大事。
+      try {
+        PORT = await pickFreePort(3000, 3010);
+        ORIGIN = `http://localhost:${PORT}`;
+        if (PORT !== 3000) {
+          writeStartupLog(`[startup] port 3000 was busy, falling back to ${PORT}`);
+        }
+      } catch (err) {
+        writeStartupLog("[pickFreePort] " + (err?.message || String(err)));
+        // PORT 取得に失敗してもデフォルトで続行 (createWindow 側でエラー表示)
+      }
 
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      try {
+        configureRuntimeEnv();
+      } catch (err) {
+        writeStartupLog("[configureRuntimeEnv FATAL] " + (err?.stack || err?.message || err));
+        try {
+          dialog.showErrorBox(
+            "Cmail - 起動エラー",
+            "設定の初期化に失敗しました。\n\n" +
+              (err?.message || String(err)) +
+              "\n\nログ: " +
+              path.join(getEarlyLogDir(), "cmail-error.log")
+          );
+        } catch {}
+        app.quit();
+        return;
+      }
+
+      try {
+        installSecurityPolicy();
+      } catch (err) {
+        writeStartupLog("[installSecurityPolicy] " + (err?.message || err));
+      }
+
+      try {
+        startNext();
+      } catch (err) {
+        writeStartupLog("[startNext FATAL] " + (err?.stack || err?.message || err));
+        // startNext が throw した = server.js が見つからない等。
+        // createWindow 内の waitForServer がタイムアウト → エラー画面表示に流れる。
+      }
+
+      try {
+        await createWindow();
+      } catch (err) {
+        writeStartupLog("[createWindow FATAL] " + (err?.stack || err?.message || err));
+        try {
+          dialog.showErrorBox(
+            "Cmail - ウィンドウ作成エラー",
+            (err?.message || String(err)) +
+              "\n\nログ: " +
+              path.join(getEarlyLogDir(), "cmail-error.log")
+          );
+        } catch {}
+      }
+
+      try {
+        setupAutoUpdater();
+      } catch (err) {
+        writeStartupLog("[setupAutoUpdater] " + (err?.message || err));
+      }
+
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      });
+
+      writeStartupLog("[whenReady] startup sequence complete");
+    })
+    .catch((err) => {
+      writeStartupLog("[whenReady FATAL] " + (err?.stack || err?.message || err));
+      try {
+        dialog.showErrorBox(
+          "Cmail - 起動エラー",
+          "Cmail の起動中に予期しないエラーが発生しました。\n\n" +
+            (err?.message || String(err)) +
+            "\n\nログ: " +
+            path.join(getEarlyLogDir(), "cmail-error.log")
+        );
+      } catch {}
     });
-  });
 }
 
 /**
