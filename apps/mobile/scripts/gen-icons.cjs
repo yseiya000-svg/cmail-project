@@ -9,8 +9,9 @@
  * パディング・角丸を一切付けず縁いっぱいまで紫で塗りつぶす。
  *
  * 中央グリフ:
- *   ・白い角丸長方形 (封筒のボディ)
- *   ・上半分に紫の V 字 (フラップ) を被せる → 折りたたまれた封筒に見える
+ *   ・白い角丸長方形 (封筒のボディ) — 全面白塗り
+ *   ・上半分にフラップの折れ目を表す紫の V 字「線」を描くだけ
+ *     (フラップ自体を紫で塗ると背景と同化してしまうため、線描のみ)
  */
 const zlib = require("zlib");
 const fs = require("fs");
@@ -132,58 +133,16 @@ function generateIcon(size) {
     }
   }
 
-  // (2) フラップの V 字を紫色で被せて「閉じた封筒」表現
-  //     ボディ上辺の (bodyX1, bodyY1) - (bcx, flapBottomY) - (bodyX2, bodyY1) を結ぶ三角形を
-  //     塗りつぶす。これにより白い長方形の上半分に紫の V 字が現れ、フラップに見える。
+  // (2) フラップの折れ目を表す V 字を紫の細い線で描く。
+  //     ボディは全部白いまま — フラップ「面」は塗らず、線描のみで表現する。
   const flapTopY = bodyY1;
-  const flapBottomY = bodyY1 + (bodyY2 - bodyY1) * 0.55; // ボディの 55% 下まで
+  const flapBottomY = bodyY1 + (bodyY2 - bodyY1) * 0.55; // ボディの 55% 下まで V の頂点
   const bcx2 = (bodyX1 + bodyX2) / 2;
 
-  function pointInTriangle(px, py, ax, ay, bx, by, cx2v, cy2v) {
-    // Barycentric
-    const v0x = cx2v - ax, v0y = cy2v - ay;
-    const v1x = bx - ax, v1y = by - ay;
-    const v2x = px - ax, v2y = py - ay;
-    const dot00 = v0x * v0x + v0y * v0y;
-    const dot01 = v0x * v1x + v0y * v1y;
-    const dot02 = v0x * v2x + v0y * v2y;
-    const dot11 = v1x * v1x + v1y * v1y;
-    const dot12 = v1x * v2x + v1y * v2y;
-    const inv = 1 / (dot00 * dot11 - dot01 * dot01);
-    const u = (dot11 * dot02 - dot01 * dot12) * inv;
-    const v = (dot00 * dot12 - dot01 * dot02) * inv;
-    return u >= 0 && v >= 0 && u + v <= 1;
-  }
-
-  // 三角形をアンチエイリアス付きで塗る（簡易: 4xMSAA）
-  for (let y = Math.floor(flapTopY) - 1; y <= Math.ceil(flapBottomY) + 1; y++) {
-    for (let x = Math.floor(bodyX1) - 1; x <= Math.ceil(bodyX2) + 1; x++) {
-      let hits = 0;
-      const samples = [
-        [0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75],
-      ];
-      for (const [sx, sy] of samples) {
-        if (
-          pointInTriangle(
-            x + sx, y + sy,
-            bodyX1, flapTopY,
-            bodyX2, flapTopY,
-            bcx2, flapBottomY
-          )
-        ) hits++;
-      }
-      if (hits === 0) continue;
-      const alpha = Math.round((hits / 4) * 255);
-      // ボディの白を上書きするため alpha blend で紫を乗せる
-      setPixel(rgba, size, x, y, 0x7c, 0x3a, 0xed, alpha);
-    }
-  }
-
-  // (3) フラップの2本のエッジ (左→中央底, 右→中央底) を白いストロークで描いて
-  //     封筒らしいラインを残す（紫の V の輪郭になる）
-  const lineW = Math.max(2, Math.round(size * 0.012));
-  drawLine(rgba, size, bodyX1, flapTopY, bcx2, flapBottomY, lineW, 255, 255, 255);
-  drawLine(rgba, size, bodyX2, flapTopY, bcx2, flapBottomY, lineW, 255, 255, 255);
+  // ストロークは少し太め (size の 3% くらい) でハッキリ見えるように
+  const lineW = Math.max(3, Math.round(size * 0.030));
+  drawLine(rgba, size, bodyX1, flapTopY, bcx2, flapBottomY, lineW, 0x7c, 0x3a, 0xed);
+  drawLine(rgba, size, bodyX2, flapTopY, bcx2, flapBottomY, lineW, 0x7c, 0x3a, 0xed);
 
   // ── RGBA バッファ → PNG バイナリ ──
   const rows = [];
