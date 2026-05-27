@@ -26,7 +26,7 @@ export default function OnboardingModal({ onClose }: Props) {
   async function handleSave() {
     const trimmed = key.trim();
     if (!trimmed) {
-      setErr("APIキーを入力してください");
+      setErr(t("apiKeyRequired"));
       return;
     }
     setSaving(true);

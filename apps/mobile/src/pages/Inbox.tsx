@@ -98,7 +98,7 @@ export default function Inbox() {
       const data = await fetchMessages(token);
       setEmails(data.messages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "読み込みエラー");
+      setError(err instanceof Error ? err.message : t("loadError"));
     } finally {
       setLoading(false);
     }
@@ -141,7 +141,7 @@ export default function Inbox() {
       <div style={{ flex: 1, overflowY: "auto" }}>
         {loading && (
           <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-text-secondary)" }}>
-            読み込み中...
+            {t("loading")}
           </div>
         )}
 

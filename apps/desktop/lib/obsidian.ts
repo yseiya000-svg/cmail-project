@@ -152,27 +152,44 @@ const NOTE_MAX_CHARS_PER_FILE = 600;
 const NOTE_MAX_TOTAL_CHARS = 4500;
 
 /**
- * Cmail/ 直下にある .md ファイルの一覧を返す（contacts/ と labels/ サブフォルダは除外）。
- * 設定画面のチェックボックスリストの元データになる。
+ * Cmail/ 配下にある .md ファイルを再帰的に列挙する。
+ * 設定画面のツリービュー (Notion 風トグル) の元データになる。
+ * contacts/ と labels/ サブフォルダも含めて返し、UI 側でフォルダ単位の選択を可能にする。
  */
 export function listCmailMdFiles(): { path: string; mtime: string }[] {
   try {
     const cmailDir = getCmailDir();
     if (!cmailDir || !fs.existsSync(cmailDir)) return [];
-    return fs
-      .readdirSync(cmailDir, { withFileTypes: true })
-      .filter((d) => d.isFile() && d.name.endsWith(".md"))
-      .map((d) => {
-        const full = path.join(cmailDir, d.name);
-        let mtime = "";
-        try {
-          mtime = fs.statSync(full).mtime.toISOString();
-        } catch {
-          // best-effort
+    const results: { path: string; mtime: string }[] = [];
+
+    function walk(dir: string, relPrefix: string) {
+      let entries: fs.Dirent[] = [];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const d of entries) {
+        if (d.name.startsWith(".")) continue; // hidden
+        const fullPath = path.join(dir, d.name);
+        const relName = relPrefix ? `${relPrefix}/${d.name}` : d.name;
+        if (d.isDirectory()) {
+          walk(fullPath, relName);
+        } else if (d.isFile() && d.name.endsWith(".md")) {
+          let mtime = "";
+          try {
+            mtime = fs.statSync(fullPath).mtime.toISOString();
+          } catch {
+            // best-effort
+          }
+          // モバイル側と相対パスの体裁を揃える: "Cmail/..."（forward slash）
+          results.push({ path: `Cmail/${relName}`, mtime });
         }
-        // モバイル側と相対パスの体裁を揃える: "Cmail/..."
-        return { path: `Cmail/${d.name}`, mtime };
-      });
+      }
+    }
+
+    walk(cmailDir, "");
+    return results;
   } catch {
     return [];
   }

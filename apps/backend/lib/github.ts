@@ -69,15 +69,15 @@ export async function listCmailMdFiles(): Promise<CmailMdFile[]> {
 
     const tree: GitHubTree = await treeRes.json();
 
+    // Cmail/ 配下の .md を全て再帰的に列挙する。
+    // contacts/ と labels/ サブフォルダも UI 上でトグル展開して個別選択できるよう、
+    // 除外せずに返す（旧バージョンでは除外していた）。
     return tree.tree
       .filter(
         (f) =>
           f.type === "blob" &&
           f.path.endsWith(".md") &&
-          f.path.startsWith(CMAIL_PREFIX) &&
-          // contacts/ と labels/ は自動管理 — 一覧に出さない
-          !f.path.startsWith(`${CMAIL_PREFIX}contacts/`) &&
-          !f.path.startsWith(`${CMAIL_PREFIX}labels/`)
+          f.path.startsWith(CMAIL_PREFIX)
       )
       .map((f) => ({ path: f.path, sha: f.sha }));
   } catch {

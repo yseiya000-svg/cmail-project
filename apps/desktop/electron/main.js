@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, ipcMain, dialog, session } = require("electro
 const path = require("path");
 const { spawn } = require("child_process");
 const http = require("http");
+const net = require("net");
 const fs = require("fs");
 const crypto = require("crypto");
 
@@ -16,9 +17,57 @@ try {
   autoUpdater = null;
 }
 
-const PORT = 3000;
-const ORIGIN = `http://localhost:${PORT}`;
+// Port: starts at 3000 but auto-picks a free one in [3000, 3010] if occupied.
+// Friends with other dev tools (Vercel CLI, Docker, etc.) holding 3000 used to
+// hit "Next.js server start timeout" — this loop fixes that silently.
+let PORT = 3000;
+let ORIGIN = `http://localhost:${PORT}`;
 const isDev = !app.isPackaged;
+
+/**
+ * Append a line to the per-user error log so end users can attach it when
+ * reporting issues. Best-effort: never throws.
+ */
+function logToFile(line) {
+  try {
+    const logDir = app.getPath("userData");
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, "cmail-error.log");
+    const stamp = new Date().toISOString();
+    fs.appendFileSync(logPath, `[${stamp}] ${line}\n`, "utf-8");
+  } catch {
+    // best-effort
+  }
+}
+
+function getErrorLogPath() {
+  try {
+    return path.join(app.getPath("userData"), "cmail-error.log");
+  } catch {
+    return "(unknown)";
+  }
+}
+
+/** Returns true if `port` can be bound on 127.0.0.1. */
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const tester = net.createServer();
+    tester.once("error", () => resolve(false));
+    tester.once("listening", () => {
+      tester.close(() => resolve(true));
+    });
+    tester.listen(port, "127.0.0.1");
+  });
+}
+
+/** Pick a free port in [start, max]; throws if none available. */
+async function pickFreePort(start = 3000, max = 3010) {
+  for (let p = start; p <= max; p++) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await isPortFree(p)) return p;
+  }
+  throw new Error(`No free port available in range ${start}-${max}`);
+}
 
 // --- Cold-start tuning -------------------------------------------------------
 // Skip Windows occlusion calculations during boot — they delay first paint by
@@ -120,7 +169,7 @@ function configureRuntimeEnv() {
 
 // --- Next.js process management ----------------------------------------------
 
-function waitForServer(url, timeoutMs = 60000) {
+function waitForServer(url, timeoutMs = 120000) {
   const start = Date.now();
   return new Promise((resolve, reject) => {
     // Cold-start tuning: poll aggressively at first (every 50ms) so we don't
@@ -167,6 +216,11 @@ function startNext() {
     // Prod: run the Next.js standalone server using Electron-as-Node.
     // electron-builder packs `.next/standalone` into resources/app via extraResources.
     const serverScript = path.join(process.resourcesPath, "app", "server.js");
+    if (!fs.existsSync(serverScript)) {
+      const msg = `Next.js server.js が見つかりません: ${serverScript}\nインストールが破損している可能性があります。アプリを再インストールしてください。`;
+      logToFile("[startNext] " + msg);
+      throw new Error(msg);
+    }
     nextProcess = spawn(process.execPath, [serverScript], {
       cwd: path.join(process.resourcesPath, "app"),
       env: {
@@ -187,6 +241,12 @@ function startNext() {
 
   nextProcess.on("error", (err) => {
     console.error("Next.js process error:", err);
+    logToFile("[nextProcess error] " + (err?.stack || err?.message || String(err)));
+  });
+  nextProcess.on("exit", (code, signal) => {
+    if (code !== 0 && code !== null) {
+      logToFile(`[nextProcess exit] code=${code} signal=${signal}`);
+    }
   });
 }
 
@@ -271,7 +331,7 @@ function installSecurityPolicy() {
       "img-src 'self' data: blob: http: https:",
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "connect-src 'self' http://localhost:3000 ws://localhost:3000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
+      `connect-src 'self' http://localhost:${PORT} ws://localhost:${PORT} https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com`,
       "frame-src 'self' data: https://accounts.google.com",
       "font-src 'self' data:",
       "object-src 'none'",
@@ -335,7 +395,7 @@ async function createWindow() {
     height: 800,
     minWidth: 960,
     minHeight: 600,
-    title: "Cmail",
+    title: `Cmail v${app.getVersion()}`,
     icon: iconPath,
     autoHideMenuBar: true,
     show: true,
@@ -402,13 +462,62 @@ async function createWindow() {
       await mainWindow.loadURL(ORIGIN);
     }
   } catch (err) {
+    const stack = err?.stack || err?.message || String(err);
+    logToFile("[createWindow] " + stack);
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(
-        "data:text/html;charset=utf-8," +
-          encodeURIComponent(
-            `<h1 style="font-family:sans-serif;color:#dc2626;padding:24px">起動エラー</h1><pre style="padding:24px;color:#374151">${err.message}</pre>`
-          )
+      const logPath = getErrorLogPath();
+      const safeMessage = String(err?.message ?? err).replace(/[<>&]/g, (c) =>
+        c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&amp;"
       );
+      const safeStack = String(stack).replace(/[<>&]/g, (c) =>
+        c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&amp;"
+      );
+      const safeLogPath = logPath.replace(/[<>&]/g, (c) =>
+        c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&amp;"
+      );
+      const html = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Cmail - 起動エラー</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", sans-serif; color: #1f2937; background: #f9fafb; margin: 0; padding: 32px; line-height: 1.6; }
+  h1 { color: #dc2626; font-size: 24px; margin: 0 0 8px; }
+  h2 { color: #374151; font-size: 14px; margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .ver { color: #9ca3af; font-size: 12px; margin-bottom: 16px; }
+  pre { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  ol { padding-left: 20px; }
+  ol li { margin-bottom: 6px; }
+  code { background: #fef3c7; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+  button { background: #7c3aed; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+  button:hover { background: #6d28d9; }
+  .log { color: #6b7280; font-size: 11px; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
+</style>
+</head>
+<body>
+  <h1>起動エラー</h1>
+  <div class="ver">Cmail v${app.getVersion()}</div>
+  <pre>${safeMessage}</pre>
+
+  <h2>次の手順を試してください</h2>
+  <ol>
+    <li>PowerShell で <code>netstat -ano | findstr :3000</code> を実行し、他のアプリがポート 3000–3010 を占有していないか確認</li>
+    <li>Windows Defender が <code>server.js</code> を隔離していないか確認 (Windowsセキュリティ → ウイルスと脅威の防止 → 保護の履歴)</li>
+    <li>Cmail をアンインストール → 最新インストーラを GitHub Releases からダウンロード → 再インストール</li>
+    <li>それでも直らない場合は下記ログファイルを開発者に送ってください</li>
+  </ol>
+
+  <h2>エラーログの場所</h2>
+  <div class="log">${safeLogPath}</div>
+
+  <h2>詳細</h2>
+  <pre>${safeStack}</pre>
+
+  <button onclick="location.reload()">再試行</button>
+</body>
+</html>`;
+      mainWindow.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
     }
   }
 }
@@ -517,6 +626,20 @@ if (!gotSingleInstanceLock) {
     if (process.platform === "win32") {
       app.setAppUserModelId("com.cmail.app");
     }
+
+    // PORT を先に確定させる: 3000 が他アプリに占有されていたら 3001..3010 から選ぶ。
+    // configureRuntimeEnv / installSecurityPolicy / startNext はすべて PORT に依存するので順序が大事。
+    try {
+      PORT = await pickFreePort(3000, 3010);
+      ORIGIN = `http://localhost:${PORT}`;
+      if (PORT !== 3000) {
+        logToFile(`[startup] port 3000 was busy, falling back to ${PORT}`);
+      }
+    } catch (err) {
+      logToFile("[pickFreePort] " + (err?.message || String(err)));
+      // PORT 取得に失敗してもデフォルトで続行 (createWindow 側でエラー表示)
+    }
+
     configureRuntimeEnv();
     installSecurityPolicy();
     startNext();

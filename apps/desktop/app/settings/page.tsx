@@ -2,9 +2,15 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSettings, type Theme } from "@/contexts/SettingsContext";
 import { LANGUAGE_NAMES, type Language } from "@/lib/i18n";
+import {
+  buildTree,
+  getDescendantFiles,
+  selectionStateOfFolder,
+  type TreeNode,
+} from "@/lib/fileTree";
 
 // 表示順: 日本語 → 英語 → スペイン語 → 韓国語 → 中国語
 const LANGUAGE_OPTIONS: Language[] = ["ja", "en", "es", "ko", "zh"];
@@ -136,6 +142,95 @@ export default function SettingsPage() {
   function deselectAllObsidianFiles() {
     updateDraft({ obsidianSelectedFiles: [] });
   }
+  // ── ツリービュー (Notion 風トグル) ───────────────────────────────
+  const [expandedSet, setExpandedSet] = useState<Set<string>>(new Set());
+  const tree = useMemo(
+    () => (obsidianFiles ? buildTree(obsidianFiles.map((f) => f.path)) : []),
+    [obsidianFiles]
+  );
+  function toggleExpanded(p: string) {
+    const next = new Set(expandedSet);
+    if (next.has(p)) next.delete(p);
+    else next.add(p);
+    setExpandedSet(next);
+  }
+  function toggleFolderSelection(node: TreeNode) {
+    const descendants = getDescendantFiles(node);
+    const cur = new Set(draft.obsidianSelectedFiles ?? []);
+    const state = selectionStateOfFolder(node, cur);
+    if (state === "all") {
+      for (const p of descendants) cur.delete(p);
+    } else {
+      for (const p of descendants) cur.add(p);
+    }
+    updateDraft({ obsidianSelectedFiles: Array.from(cur) });
+  }
+  function renderTreeRows(nodes: TreeNode[], depth: number): ReactNode[] {
+    const selectedSet = new Set(draft.obsidianSelectedFiles ?? []);
+    const rows: ReactNode[] = [];
+    for (const node of nodes) {
+      const isFolder = node.type === "folder";
+      const expanded = isFolder && expandedSet.has(node.path);
+      const sel = isFolder
+        ? selectionStateOfFolder(node, selectedSet)
+        : selectedSet.has(node.path)
+        ? "all"
+        : "none";
+      rows.push(
+        <div
+          key={node.path}
+          className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-b-0 hover:bg-violet-50/40"
+          style={{ paddingLeft: `${0.5 + depth * 1.1}rem`, paddingRight: "0.5rem" }}
+        >
+          <button
+            type="button"
+            onClick={() => isFolder && toggleExpanded(node.path)}
+            aria-label={expanded ? t("collapseFolder") : t("expandFolder")}
+            className="w-4 h-4 inline-flex items-center justify-center"
+            style={{ visibility: isFolder ? "visible" : "hidden", cursor: isFolder ? "pointer" : "default" }}
+          >
+            <svg
+              width="9"
+              height="9"
+              viewBox="0 0 10 10"
+              style={{
+                transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 150ms",
+              }}
+            >
+              <path d="M2 1 L8 5 L2 9 Z" className="fill-gray-400" />
+            </svg>
+          </button>
+          <input
+            type="checkbox"
+            checked={sel === "all"}
+            ref={(el) => {
+              if (el) el.indeterminate = sel === "partial";
+            }}
+            onChange={() =>
+              isFolder ? toggleFolderSelection(node) : toggleObsidianFile(node.path)
+            }
+            className="accent-violet-600 w-4 h-4 flex-shrink-0"
+          />
+          <span
+            onClick={() => isFolder && toggleExpanded(node.path)}
+            className={
+              isFolder
+                ? "text-sm font-semibold text-gray-700 cursor-pointer flex-1 break-all"
+                : "text-sm font-mono text-gray-600 flex-1 break-all"
+            }
+          >
+            {node.name}
+          </span>
+        </div>
+      );
+      if (isFolder && expanded) {
+        rows.push(...renderTreeRows(node.children, depth + 1));
+      }
+    }
+    return rows;
+  }
+
   async function reloadObsidianFiles() {
     setObsidianFilesLoading(true);
     setObsidianFilesError("");
@@ -454,26 +549,9 @@ export default function SettingsPage() {
                     {t("loadFileList")}
                   </button>
                 </div>
-                <ul className="max-h-72 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg">
-                  {obsidianFiles.map((f) => {
-                    const checked = (draft.obsidianSelectedFiles ?? []).includes(f.path);
-                    return (
-                      <li key={f.path}>
-                        <label className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-violet-50/40 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleObsidianFile(f.path)}
-                            className="accent-violet-600 w-4 h-4"
-                          />
-                          <span className="text-sm text-gray-700 font-mono break-all">
-                            {f.path.replace(/^Cmail\//, "")}
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <div className="max-h-80 overflow-y-auto border border-gray-100 rounded-lg">
+                  {renderTreeRows(tree, 0)}
+                </div>
                 <p className="text-[11px] text-gray-400 mt-2">
                   {tf("filesSelectedCount", (draft.obsidianSelectedFiles ?? []).length)} / {obsidianFiles.length}
                 </p>

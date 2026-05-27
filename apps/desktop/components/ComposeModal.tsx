@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import type { ReplyTone, ReplyPattern, GmailLabel } from "@/types";
-import { TONE_LABELS } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
+
+const TONE_KEY_MAP: Record<ReplyTone, string> = {
+  business: "toneBusiness",
+  casual: "toneCasual",
+  polite: "tonePolite",
+  brief: "toneBrief",
+};
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -13,6 +20,7 @@ interface ComposeModalProps {
 }
 
 export default function ComposeModal({ onClose, labels = [], onSent }: ComposeModalProps) {
+  const { t } = useSettings();
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -29,7 +37,9 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
 
-  const tones = Object.entries(TONE_LABELS) as [ReplyTone, string][];
+  const tones: [ReplyTone, string][] = (Object.keys(TONE_KEY_MAP) as ReplyTone[]).map(
+    (tn) => [tn, t(TONE_KEY_MAP[tn])]
+  );
   const userLabels = labels.filter((l) => l.type === "user" && !l.name.startsWith("["));
 
   async function handleGenerate() {
@@ -42,7 +52,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
         body: JSON.stringify({ to, subject, draft, tone, labelIds: selectedLabelIds }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "生成エラー");
+      if (!res.ok) throw new Error(data.error || t("generationError"));
       setBody(data.body);
       setAiGenerated(data.body);
     } catch (e: any) {
@@ -69,7 +79,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "送信エラー");
+        throw new Error(data.error || t("sendError"));
       }
 
       // 学習データに「新規送信」として記録（kind: "compose"）。
@@ -115,7 +125,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
 
         {/* ヘッダー */}
         <div className="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-t-xl">
-          <span className="text-white text-sm font-medium">新規メール</span>
+          <span className="text-white text-sm font-medium">{t("newMail")}</span>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -127,7 +137,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
           {/* 宛先 */}
           <input
             type="email"
-            placeholder="宛先"
+            placeholder={t("recipient")}
             value={to}
             onChange={(e) => setTo(e.target.value)}
             className="px-4 py-2 border-b border-gray-200 text-sm outline-none"
@@ -135,7 +145,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
           {/* 件名 */}
           <input
             type="text"
-            placeholder="件名"
+            placeholder={t("subjectLabel")}
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             className="px-4 py-2 border-b border-gray-200 text-sm outline-none"
@@ -147,13 +157,13 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
               <svg width="14" height="14" viewBox="0 0 24 24" fill="#7c3aed">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
               </svg>
-              <span className="text-xs text-violet-700 font-medium">Claude AI で下書き生成</span>
+              <span className="text-xs text-violet-700 font-medium">{t("aiDraftLabel")}</span>
             </div>
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => (e.ctrlKey || e.metaKey) && e.key === "Enter" && handleGenerate()}
-              placeholder="下書きやヒントを入力（例：会議の日程調整をお願いする）　Ctrl+Enter で生成"
+              placeholder={t("composeDraftPlaceholder")}
               rows={3}
               className="w-full text-xs bg-white border border-violet-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 placeholder-gray-400 resize-none mb-1.5"
             />
@@ -178,14 +188,14 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    生成中
+                    {t("generating")}
                   </>
                 ) : (
                   <>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
                     </svg>
-                    生成
+                    {t("generate")}
                   </>
                 )}
               </button>
@@ -194,7 +204,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
 
           {/* 本文 */}
           <textarea
-            placeholder="本文　（Ctrl+Enter で送信）"
+            placeholder={t("bodyPlaceholder")}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => {
@@ -216,7 +226,7 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
             </svg>
-            {sending ? "送信中..." : "送信"}
+            {sending ? t("sending") : t("sendBtn")}
           </button>
 
           {/* ラベル選択 */}
@@ -229,12 +239,12 @@ export default function ComposeModal({ onClose, labels = [], onSent }: ComposeMo
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z" />
               </svg>
-              {selectedLabelIds.length === 0 ? "ラベル" : `ラベル (${selectedLabelIds.length})`}
+              {selectedLabelIds.length === 0 ? t("labels") : `${t("labels")} (${selectedLabelIds.length})`}
             </button>
             {showLabelPicker && (
               <div className="absolute bottom-full left-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[180px] max-h-60 overflow-y-auto">
                 {userLabels.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-gray-400">ラベルがありません</div>
+                  <div className="px-3 py-2 text-xs text-gray-400">{t("noLabels")}</div>
                 ) : (
                   userLabels.map((l) => (
                     <label

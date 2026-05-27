@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import { fetchMessage, generateAiReply, type Email, type ReplyTone } from "../lib/api";
 import { getObsidianFilesForRequest } from "../lib/obsidianFiles";
 import { getAiKey } from "../lib/aiKey";
 
-const TONE_LABELS: Record<ReplyTone, string> = {
-  business: "ビジネス",
-  casual: "カジュアル",
-  polite: "丁寧",
-  brief: "簡潔",
+const TONE_KEY_MAP: Record<ReplyTone, string> = {
+  business: "toneBusiness",
+  casual: "toneCasual",
+  polite: "tonePolite",
+  brief: "toneBrief",
 };
 
 const AI_BODY_SESSION_KEY = "cmail_ai_body";
@@ -91,6 +92,7 @@ export default function EmailDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { t } = useSettings();
   const [email, setEmail] = useState<Email | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +108,7 @@ export default function EmailDetail() {
     if (!email || !token) return;
     const aiKey = getAiKey();
     if (!aiKey) {
-      setAiError("設定画面で Anthropic API キーを登録してください");
+      setAiError(t("registerApiKeyPrompt"));
       return;
     }
     setAiGenerating(true);
@@ -124,7 +126,7 @@ export default function EmailDetail() {
       sessionStorage.setItem(AI_BODY_SESSION_KEY, reply);
       navigate(`/compose?reply=${encodeURIComponent(email.id)}&fromAi=1`);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : "生成失敗");
+      setAiError(err instanceof Error ? err.message : t("loadFailed"));
       setAiGenerating(false);
     }
   }
@@ -136,7 +138,7 @@ export default function EmailDetail() {
     try {
       setEmail(await fetchMessage(token, id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "読み込みエラー");
+      setError(err instanceof Error ? err.message : t("loadError"));
     } finally {
       setLoading(false);
     }
@@ -171,9 +173,9 @@ export default function EmailDetail() {
             alignItems: "center",
             gap: "0.2rem",
           }}
-          aria-label="戻る"
+          aria-label={t("back")}
         >
-          ← 受信トレイ
+          ← {t("inbox")}
         </button>
 
         {email && (
@@ -203,7 +205,7 @@ export default function EmailDetail() {
                 textDecoration: "none",
               }}
             >
-              返信
+              {t("replyBtn")}
             </Link>
           </div>
         )}
@@ -237,27 +239,27 @@ export default function EmailDetail() {
               gap: "1rem",
             }}
           >
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>AI で返信を生成</h2>
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{t("generateAiReply")}</h2>
 
             <div>
               <label style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)", display: "block", marginBottom: "0.4rem" }}>
-                トーン
+                {t("toneLabel")}
               </label>
               <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                {(Object.keys(TONE_LABELS) as ReplyTone[]).map((t) => (
+                {(Object.keys(TONE_KEY_MAP) as ReplyTone[]).map((tn) => (
                   <button
-                    key={t}
-                    onClick={() => setAiTone(t)}
+                    key={tn}
+                    onClick={() => setAiTone(tn)}
                     style={{
-                      background: aiTone === t ? "var(--color-primary)" : "var(--color-surface)",
-                      color: aiTone === t ? "#fff" : "var(--color-text)",
+                      background: aiTone === tn ? "var(--color-primary)" : "var(--color-surface)",
+                      color: aiTone === tn ? "#fff" : "var(--color-text)",
                       fontSize: "0.85rem",
                       padding: "0.5rem 0.9rem",
                       borderRadius: "8px",
-                      fontWeight: aiTone === t ? 600 : 400,
+                      fontWeight: aiTone === tn ? 600 : 400,
                     }}
                   >
-                    {TONE_LABELS[t]}
+                    {t(TONE_KEY_MAP[tn])}
                   </button>
                 ))}
               </div>
@@ -265,12 +267,12 @@ export default function EmailDetail() {
 
             <div>
               <label style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)", display: "block", marginBottom: "0.4rem" }}>
-                ヒント（任意）
+                {t("hintLabelOptional")}
               </label>
               <textarea
                 value={aiHint}
                 onChange={(e) => setAiHint(e.target.value)}
-                placeholder="例: 来週は出張なので翌週以降で調整したい"
+                placeholder={t("aiReplyHintExample")}
                 rows={3}
                 style={{
                   width: "100%",
@@ -305,7 +307,7 @@ export default function EmailDetail() {
                   opacity: aiGenerating ? 0.5 : 1,
                 }}
               >
-                キャンセル
+                {t("cancel")}
               </button>
               <button
                 onClick={handleGenerate}
@@ -321,7 +323,7 @@ export default function EmailDetail() {
                   opacity: aiGenerating ? 0.5 : 1,
                 }}
               >
-                {aiGenerating ? "生成中..." : "生成"}
+                {aiGenerating ? t("generating") : t("generate")}
               </button>
             </div>
           </div>
@@ -331,7 +333,7 @@ export default function EmailDetail() {
       <div style={{ flex: 1, overflowY: "auto" }}>
         {loading && (
           <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-text-secondary)" }}>
-            読み込み中...
+            {t("loading")}
           </div>
         )}
 
@@ -348,7 +350,7 @@ export default function EmailDetail() {
                 fontSize: "0.9rem",
               }}
             >
-              再試行
+              {t("retry")}
             </button>
           </div>
         )}

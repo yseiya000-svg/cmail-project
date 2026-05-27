@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import { sendMessage, fetchMessage } from "../lib/api";
 
 export default function Compose() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { token } = useAuth();
+  const { t } = useSettings();
 
   const replyId = params.get("reply");
   const fromAi = params.get("fromAi") === "1";
@@ -47,14 +49,14 @@ export default function Compose() {
           setBody(`\n\n--- ${m.fromName || m.from} さんからのメール ---\n${quoted}`);
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "読み込み失敗"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("loadError")))
       .finally(() => setPrefilling(false));
   }, [replyId, token, fromAi]);
 
   async function handleSend() {
     if (!token) return;
     if (!to || !subject) {
-      setError("宛先と件名は必須です");
+      setError(t("recipientAndSubjectRequired"));
       return;
     }
     setSending(true);
@@ -63,7 +65,7 @@ export default function Compose() {
       await sendMessage(token, { to, subject, body, threadId, inReplyTo, references });
       navigate("/inbox", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "送信失敗");
+      setError(err instanceof Error ? err.message : t("sendError"));
       setSending(false);
     }
   }
@@ -105,10 +107,10 @@ export default function Compose() {
             padding: "0.25rem 0.5rem",
           }}
         >
-          キャンセル
+          {t("cancel")}
         </button>
         <h1 style={{ fontSize: "1rem", fontWeight: 600 }}>
-          {replyId ? "返信" : "新規メール"}
+          {replyId ? t("replyBtn") : t("newMail")}
         </h1>
         <button
           onClick={handleSend}
@@ -123,7 +125,7 @@ export default function Compose() {
             opacity: sending || prefilling ? 0.5 : 1,
           }}
         >
-          {sending ? "送信中..." : "送信"}
+          {sending ? t("sending") : t("sendBtn")}
         </button>
       </header>
 
@@ -143,7 +145,7 @@ export default function Compose() {
 
         <input
           type="email"
-          placeholder="宛先"
+          placeholder={t("recipient")}
           value={to}
           onChange={(e) => setTo(e.target.value)}
           style={inputStyle}
@@ -152,7 +154,7 @@ export default function Compose() {
 
         <input
           type="text"
-          placeholder="件名"
+          placeholder={t("subjectLabel")}
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           style={inputStyle}
@@ -160,7 +162,7 @@ export default function Compose() {
         />
 
         <textarea
-          placeholder="本文"
+          placeholder={t("bodyPlaceholder")}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           disabled={prefilling}

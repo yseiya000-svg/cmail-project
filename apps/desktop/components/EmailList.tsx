@@ -3,6 +3,7 @@
 import type { EmailMessage } from "@/types";
 import { formatDistanceToNow, isValid } from "date-fns";
 import { ja } from "date-fns/locale";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface EmailListProps {
   messages: EmailMessage[];
@@ -32,10 +33,12 @@ export default function EmailList({
   selectedIds,
   onToggleSelect,
 }: EmailListProps) {
+  const { t } = useSettings();
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-        読み込み中...
+        {t("loading")}
       </div>
     );
   }
@@ -43,7 +46,7 @@ export default function EmailList({
   if (messages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-        メールがありません
+        {t("noMessages")}
       </div>
     );
   }

@@ -2,7 +2,14 @@
 
 import { useState, useRef, useCallback } from "react";
 import type { EmailMessage, ReplyTone, ReplyPattern } from "@/types";
-import { TONE_LABELS } from "@/types";
+import { useSettings } from "@/contexts/SettingsContext";
+
+const TONE_KEY_MAP: Record<ReplyTone, string> = {
+  business: "toneBusiness",
+  casual: "toneCasual",
+  polite: "tonePolite",
+  brief: "toneBrief",
+};
 
 interface AIReplyPanelProps {
   message: EmailMessage;
@@ -11,6 +18,7 @@ interface AIReplyPanelProps {
 }
 
 export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelProps) {
+  const { t } = useSettings();
   const [tone, setTone] = useState<ReplyTone>("business");
   const [hint, setHint] = useState("");
   const [reply, setReply] = useState("");
@@ -27,7 +35,9 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
   const dragStartY = useRef(0);
   const dragStartHeight = useRef(0);
 
-  const tones = Object.entries(TONE_LABELS) as [ReplyTone, string][];
+  const tones: [ReplyTone, string][] = (Object.keys(TONE_KEY_MAP) as ReplyTone[]).map(
+    (tn) => [tn, t(TONE_KEY_MAP[tn])]
+  );
 
   // ドラッグ開始
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -74,7 +84,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "生成エラー");
+      if (!res.ok) throw new Error(data.error || t("generationError"));
       setReply(data.reply);
       setAiGenerated(data.reply);
     } catch (e: any) {
@@ -108,7 +118,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "送信エラー");
+        throw new Error(data.error || t("sendError"));
       }
 
       const pattern: ReplyPattern & {
@@ -163,7 +173,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
           <svg width="14" height="14" viewBox="0 0 24 24" fill="#7c3aed">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
           </svg>
-          <span className="text-xs text-violet-700 font-medium">Claude AI で下書き生成</span>
+          <span className="text-xs text-violet-700 font-medium">{t("aiDraftLabel")}</span>
         </div>
         <div className="flex gap-2">
           <input
@@ -171,7 +181,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
             value={hint}
             onChange={(e) => setHint(e.target.value)}
             onKeyDown={(e) => (e.ctrlKey || e.metaKey) && e.key === "Enter" && handleGenerate()}
-            placeholder="ヒント（例：丁寧にお断りして、来週の提案をする）　Ctrl+Enter で生成"
+            placeholder={t("hintPlaceholder")}
             className="flex-1 text-xs bg-white border border-violet-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400 placeholder-gray-400"
           />
           <select
@@ -194,14 +204,14 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                生成中
+                {t("generating")}
               </>
             ) : (
               <>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
                 </svg>
-                生成
+                {t("generate")}
               </>
             )}
           </button>
@@ -221,7 +231,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
       <textarea
         value={reply}
         onChange={(e) => setReply(e.target.value)}
-        placeholder="返信を入力... （Ctrl+Enter で送信）"
+        placeholder={t("replyPlaceholder")}
         style={{ height: textareaHeight }}
         className="px-4 py-3 text-sm text-gray-800 outline-none resize-none placeholder-gray-400"
         onKeyDown={(e) => {
@@ -242,7 +252,7 @@ export default function AIReplyPanel({ message, onClose, onSent }: AIReplyPanelP
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
             </svg>
-            {sending ? "送信中..." : "送信"}
+            {sending ? t("sending") : t("sendBtn")}
           </button>
           <button className="text-gray-400 hover:text-gray-600">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

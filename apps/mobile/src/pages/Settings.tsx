@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
@@ -16,6 +16,12 @@ import {
 } from "../lib/obsidianFiles";
 import { LANGUAGE_NAMES, type Language } from "../lib/i18n";
 import type { Theme } from "../lib/settings";
+import {
+  buildTree,
+  getDescendantFiles,
+  selectionStateOfFolder,
+  type TreeNode,
+} from "../lib/fileTree";
 
 const LANGUAGE_OPTIONS: Language[] = ["ja", "en", "es", "ko", "zh"];
 const THEME_OPTIONS: Theme[] = ["light", "dark", "system"];
@@ -68,7 +74,7 @@ const secondaryBtnStyle: CSSProperties = {
 export default function Settings() {
   const navigate = useNavigate();
   const { signOut, token } = useAuth();
-  const { language, theme, setLanguage, setTheme, t } = useSettings();
+  const { language, theme, setLanguage, setTheme, t, tf } = useSettings();
 
   // ── AI APIキー ───────────────────────────────────────────────────
   const [storedKey, setStoredKey] = useState(() => getAiKey() ?? "");
@@ -170,6 +176,125 @@ export default function Settings() {
   function deselectAll() {
     setSelectedSet(new Set());
     setSelectedObsidianFiles([]);
+  }
+
+  // ── ツリービュー (Notion 風トグル) ───────────────────────────────
+  const [expandedSet, setExpandedSet] = useState<Set<string>>(new Set()); // 初期: 全部折りたたみ
+  const tree = useMemo(
+    () => (obsidianFiles ? buildTree(obsidianFiles.map((f) => f.path)) : []),
+    [obsidianFiles]
+  );
+
+  function toggleExpanded(path: string) {
+    const next = new Set(expandedSet);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    setExpandedSet(next);
+  }
+
+  function toggleFolderSelection(node: TreeNode) {
+    const descendants = getDescendantFiles(node);
+    const state = selectionStateOfFolder(node, selectedSet ?? new Set());
+    const next = new Set(selectedSet ?? []);
+    if (state === "all") {
+      for (const p of descendants) next.delete(p);
+    } else {
+      for (const p of descendants) next.add(p);
+    }
+    setSelectedSet(next);
+    setSelectedObsidianFiles(Array.from(next));
+  }
+
+  function renderTreeNodes(nodes: TreeNode[], depth: number): ReactNode[] {
+    const rows: ReactNode[] = [];
+    for (const node of nodes) {
+      const isFolder = node.type === "folder";
+      const expanded = isFolder && expandedSet.has(node.path);
+      const sel = isFolder
+        ? selectionStateOfFolder(node, selectedSet ?? new Set())
+        : (selectedSet ?? new Set()).has(node.path)
+        ? "all"
+        : "none";
+
+      rows.push(
+        <div
+          key={node.path}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.45rem 0.5rem",
+            paddingLeft: `${0.5 + depth * 1.1}rem`,
+            borderBottom: "1px solid var(--color-border)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => isFolder && toggleExpanded(node.path)}
+            aria-label={expanded ? t("collapseFolder") : t("expandFolder")}
+            style={{
+              background: "transparent",
+              padding: 0,
+              width: "16px",
+              height: "16px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              visibility: isFolder ? "visible" : "hidden",
+              cursor: isFolder ? "pointer" : "default",
+            }}
+          >
+            <svg
+              width="9"
+              height="9"
+              viewBox="0 0 10 10"
+              style={{
+                transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 150ms",
+              }}
+            >
+              <path d="M2 1 L8 5 L2 9 Z" fill="var(--color-text-secondary)" />
+            </svg>
+          </button>
+          <input
+            type="checkbox"
+            checked={sel === "all"}
+            ref={(el) => {
+              if (el) el.indeterminate = sel === "partial";
+            }}
+            onChange={() =>
+              isFolder ? toggleFolderSelection(node) : toggleFile(node.path)
+            }
+            style={{
+              accentColor: "var(--color-primary)",
+              width: "1.05rem",
+              height: "1.05rem",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            onClick={() => isFolder && toggleExpanded(node.path)}
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: isFolder ? 600 : 400,
+              fontFamily: isFolder
+                ? "inherit"
+                : "ui-monospace, Menlo, monospace",
+              flex: 1,
+              cursor: isFolder ? "pointer" : "default",
+              wordBreak: "break-all",
+              color: "var(--color-text)",
+            }}
+          >
+            {node.name}
+          </span>
+        </div>
+      );
+      if (isFolder && expanded) {
+        rows.push(...renderTreeNodes(node.children, depth + 1));
+      }
+    }
+    return rows;
   }
 
   // ── レンダリング ─────────────────────────────────────────────────
@@ -471,7 +596,7 @@ export default function Settings() {
             )}
             {obsidianError && (
               <div style={{ fontSize: "0.82rem", color: "#dc2626" }}>
-                エラー: {obsidianError}
+                {t("loadError")}: {obsidianError}
               </div>
             )}
             {!obsidianLoading && obsidianFiles && obsidianFiles.length === 0 && (
@@ -495,53 +620,18 @@ export default function Settings() {
                     {t("loadFileList")}
                   </button>
                 </div>
-                <ul
+                <div
                   style={{
-                    listStyle: "none",
-                    padding: 0,
-                    margin: 0,
-                    maxHeight: "280px",
+                    maxHeight: "320px",
                     overflowY: "auto",
                     border: "1px solid var(--color-border)",
                     borderRadius: "8px",
                   }}
                 >
-                  {obsidianFiles.map((f) => {
-                    const checked = (selectedSet ?? new Set()).has(f.path);
-                    return (
-                      <li key={f.path}>
-                        <label
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.6rem",
-                            padding: "0.5rem 0.6rem",
-                            cursor: "pointer",
-                            borderBottom: "1px solid var(--color-border)",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleFile(f.path)}
-                            style={{ accentColor: "var(--color-primary)", width: "1.05rem", height: "1.05rem" }}
-                          />
-                          <span
-                            style={{
-                              fontSize: "0.85rem",
-                              fontFamily: "ui-monospace, Menlo, monospace",
-                              wordBreak: "break-all",
-                            }}
-                          >
-                            {f.path.replace(/^Cmail\//, "")}
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
+                  {renderTreeNodes(tree, 0)}
+                </div>
                 <p style={{ fontSize: "0.72rem", color: "var(--color-text-secondary)", marginTop: "0.5rem" }}>
-                  選択中: {selectedSet?.size ?? 0} / {obsidianFiles.length}
+                  {tf("filesSelectedCount", selectedSet?.size ?? 0)} / {obsidianFiles.length}
                 </p>
               </>
             )}

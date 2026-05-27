@@ -136,6 +136,51 @@ const translations: Record<Language, Dict> = {
     filesSelectedCount: "選択中: {n}",
     folderBrowseDesktopOnly: "フォルダ選択はデスクトップアプリ版で利用できます。",
 
+    // Common Compose / 返信フォーム
+    cancel: "キャンセル",
+    newMail: "新規メール",
+    recipient: "宛先",
+    bodyLabel: "本文",
+    bodyPlaceholder: "本文",
+    sendBtn: "送信",
+    sending: "送信中...",
+    subjectLabel: "件名",
+
+    // AI 生成
+    generate: "生成",
+    generating: "生成中...",
+    generateAiReply: "AI で返信を生成",
+    aiDraftLabel: "Claude AI で下書き生成",
+    hintPlaceholder: "ヒント（例：丁寧にお断りして、来週の提案をする）　Ctrl+Enter で生成",
+    composeDraftPlaceholder: "下書きやヒントを入力（例：会議の日程調整をお願いする）　Ctrl+Enter で生成",
+    replyPlaceholder: "返信を入力... （Ctrl+Enter で送信）",
+    generationError: "生成エラー",
+    sendError: "送信エラー",
+    registerApiKeyPrompt: "設定画面で Anthropic API キーを登録してください",
+    loadError: "読み込みエラー",
+    loadFailed: "生成失敗",
+    noMessages: "メールがありません",
+
+    // トーン (TONE_LABELS 統合)
+    toneBusiness: "ビジネス",
+    toneCasual: "カジュアル",
+    tonePolite: "丁寧",
+    toneBrief: "簡潔",
+
+    // バリデーション
+    recipientAndSubjectRequired: "宛先と件名は必須です",
+    apiKeyRequired: "APIキーを入力してください",
+
+    // フォルダトグル
+    expandFolder: "展開",
+    collapseFolder: "折りたたむ",
+
+    // モバイル AI 返信モーダル
+    toneLabel: "トーン",
+    hintLabelOptional: "ヒント（任意）",
+    aiReplyHintExample: "例: 来週は出張なので翌週以降で調整したい",
+    retry: "再試行",
+
     // Onboarding modal
     onboardingTitle: "Cmail へようこそ",
     onboardingBody:
@@ -266,6 +311,45 @@ const translations: Record<Language, Dict> = {
     filesSelectedCount: "Selected: {n}",
     folderBrowseDesktopOnly: "Folder browsing is only available in the desktop app.",
 
+    cancel: "Cancel",
+    newMail: "New mail",
+    recipient: "To",
+    bodyLabel: "Body",
+    bodyPlaceholder: "Body",
+    sendBtn: "Send",
+    sending: "Sending...",
+    subjectLabel: "Subject",
+
+    generate: "Generate",
+    generating: "Generating...",
+    generateAiReply: "Generate AI reply",
+    aiDraftLabel: "Draft with Claude AI",
+    hintPlaceholder: "Hint (e.g. politely decline and propose next week)  Ctrl+Enter to generate",
+    composeDraftPlaceholder: "Enter a draft or hint (e.g. schedule a meeting)  Ctrl+Enter to generate",
+    replyPlaceholder: "Type a reply... (Ctrl+Enter to send)",
+    generationError: "Generation error",
+    sendError: "Send error",
+    registerApiKeyPrompt: "Please register your Anthropic API key in Settings",
+    loadError: "Load error",
+    loadFailed: "Generation failed",
+    noMessages: "No messages",
+
+    toneBusiness: "Business",
+    toneCasual: "Casual",
+    tonePolite: "Polite",
+    toneBrief: "Brief",
+
+    recipientAndSubjectRequired: "Recipient and subject are required",
+    apiKeyRequired: "Please enter an API key",
+
+    expandFolder: "Expand",
+    collapseFolder: "Collapse",
+
+    toneLabel: "Tone",
+    hintLabelOptional: "Hint (optional)",
+    aiReplyHintExample: "e.g. I'll be on a business trip next week, please schedule for the week after",
+    retry: "Retry",
+
     onboardingTitle: "Welcome to Cmail",
     onboardingBody:
       "To use AI-generated email replies, a Claude (Anthropic) API key is required.\nYou can get one from the Anthropic Console, and usage is billed to your own account.",
@@ -394,6 +478,45 @@ const translations: Record<Language, Dict> = {
     noFilesFound: "Cmail/ 폴더에 .md 파일이 없습니다.",
     filesSelectedCount: "선택됨: {n}",
     folderBrowseDesktopOnly: "폴더 선택은 데스크톱 앱에서만 가능합니다.",
+
+    cancel: "취소",
+    newMail: "새 메일",
+    recipient: "받는 사람",
+    bodyLabel: "본문",
+    bodyPlaceholder: "본문",
+    sendBtn: "보내기",
+    sending: "보내는 중...",
+    subjectLabel: "제목",
+
+    generate: "생성",
+    generating: "생성 중...",
+    generateAiReply: "AI로 답장 생성",
+    aiDraftLabel: "Claude AI로 초안 작성",
+    hintPlaceholder: "힌트 (예: 정중하게 거절하고 다음 주를 제안)  Ctrl+Enter로 생성",
+    composeDraftPlaceholder: "초안 또는 힌트 입력 (예: 회의 일정 조율)  Ctrl+Enter로 생성",
+    replyPlaceholder: "답장 입력... (Ctrl+Enter로 전송)",
+    generationError: "생성 오류",
+    sendError: "전송 오류",
+    registerApiKeyPrompt: "설정에서 Anthropic API 키를 등록해 주세요",
+    loadError: "불러오기 오류",
+    loadFailed: "생성 실패",
+    noMessages: "메일이 없습니다",
+
+    toneBusiness: "비즈니스",
+    toneCasual: "캐주얼",
+    tonePolite: "정중",
+    toneBrief: "간결",
+
+    recipientAndSubjectRequired: "받는 사람과 제목은 필수입니다",
+    apiKeyRequired: "API 키를 입력해 주세요",
+
+    expandFolder: "펼치기",
+    collapseFolder: "접기",
+
+    toneLabel: "톤",
+    hintLabelOptional: "힌트 (선택)",
+    aiReplyHintExample: "예: 다음 주는 출장이라 그 다음 주 이후로 조정하고 싶습니다",
+    retry: "다시 시도",
 
     onboardingTitle: "Cmail에 오신 것을 환영합니다",
     onboardingBody:
@@ -524,6 +647,45 @@ const translations: Record<Language, Dict> = {
     filesSelectedCount: "Seleccionados: {n}",
     folderBrowseDesktopOnly: "La selección de carpeta solo está disponible en la app de escritorio.",
 
+    cancel: "Cancelar",
+    newMail: "Nuevo correo",
+    recipient: "Para",
+    bodyLabel: "Cuerpo",
+    bodyPlaceholder: "Cuerpo",
+    sendBtn: "Enviar",
+    sending: "Enviando...",
+    subjectLabel: "Asunto",
+
+    generate: "Generar",
+    generating: "Generando...",
+    generateAiReply: "Generar respuesta con IA",
+    aiDraftLabel: "Borrador con Claude AI",
+    hintPlaceholder: "Sugerencia (p.ej. rechazar amablemente y proponer la próxima semana)  Ctrl+Enter para generar",
+    composeDraftPlaceholder: "Introduce un borrador o sugerencia (p.ej. coordinar una reunión)  Ctrl+Enter para generar",
+    replyPlaceholder: "Escribe una respuesta... (Ctrl+Enter para enviar)",
+    generationError: "Error de generación",
+    sendError: "Error al enviar",
+    registerApiKeyPrompt: "Por favor, registra tu clave API de Anthropic en Ajustes",
+    loadError: "Error al cargar",
+    loadFailed: "Generación fallida",
+    noMessages: "No hay mensajes",
+
+    toneBusiness: "Negocios",
+    toneCasual: "Casual",
+    tonePolite: "Cortés",
+    toneBrief: "Breve",
+
+    recipientAndSubjectRequired: "El destinatario y el asunto son obligatorios",
+    apiKeyRequired: "Por favor, introduce una clave API",
+
+    expandFolder: "Expandir",
+    collapseFolder: "Contraer",
+
+    toneLabel: "Tono",
+    hintLabelOptional: "Sugerencia (opcional)",
+    aiReplyHintExample: "p.ej. Estaré de viaje la próxima semana, agendar para la siguiente",
+    retry: "Reintentar",
+
     onboardingTitle: "Bienvenido a Cmail",
     onboardingBody:
       "Para usar las respuestas generadas por IA, se requiere una clave API de Claude (Anthropic).\nPuedes obtener una desde Anthropic Console y el uso se facturará a tu propia cuenta.",
@@ -652,6 +814,45 @@ const translations: Record<Language, Dict> = {
     noFilesFound: "Cmail/ 文件夹中未找到 .md 文件。",
     filesSelectedCount: "已选: {n}",
     folderBrowseDesktopOnly: "文件夹选择仅在桌面应用中可用。",
+
+    cancel: "取消",
+    newMail: "新邮件",
+    recipient: "收件人",
+    bodyLabel: "正文",
+    bodyPlaceholder: "正文",
+    sendBtn: "发送",
+    sending: "发送中...",
+    subjectLabel: "主题",
+
+    generate: "生成",
+    generating: "生成中...",
+    generateAiReply: "用 AI 生成回复",
+    aiDraftLabel: "使用 Claude AI 起草",
+    hintPlaceholder: "提示（例：婉拒并提议下周）  Ctrl+Enter 生成",
+    composeDraftPlaceholder: "输入草稿或提示（例：协调会议时间）  Ctrl+Enter 生成",
+    replyPlaceholder: "输入回复... （Ctrl+Enter 发送）",
+    generationError: "生成错误",
+    sendError: "发送错误",
+    registerApiKeyPrompt: "请在设置中注册 Anthropic API 密钥",
+    loadError: "加载错误",
+    loadFailed: "生成失败",
+    noMessages: "暂无邮件",
+
+    toneBusiness: "商务",
+    toneCasual: "随意",
+    tonePolite: "礼貌",
+    toneBrief: "简洁",
+
+    recipientAndSubjectRequired: "收件人和主题为必填项",
+    apiKeyRequired: "请输入 API 密钥",
+
+    expandFolder: "展开",
+    collapseFolder: "折叠",
+
+    toneLabel: "语气",
+    hintLabelOptional: "提示（可选）",
+    aiReplyHintExample: "例：下周出差，请安排到下下周以后",
+    retry: "重试",
 
     onboardingTitle: "欢迎使用 Cmail",
     onboardingBody:
